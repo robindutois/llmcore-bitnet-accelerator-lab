@@ -13,3 +13,12 @@ __pycache__/
 *.str
 vivado_*.backup*/
 .Xil/
+
+# Week 3 compiled test binaries
+fpga_erven/hls/bitlinear/testbench
+fpga_erven/hls/bitlinear/testbench_week2_vectors
+fpga_erven/hls/packing/tests/test_packing
+
+# Vitis workspace
+vitis_workspace/
+*_hls_project/
