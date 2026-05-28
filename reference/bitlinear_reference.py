@@ -349,7 +349,10 @@ def run_all_tests(vector_dir: str = "test_vectors") -> bool:
 if __name__ == "__main__":
     import sys
 
-    vector_dir = "test_vectors"
+    # Always write test_vectors/ next to this script,
+    # regardless of where the script is called from
+    script_dir = Path(__file__).parent.resolve()
+    vector_dir = str(script_dir / "test_vectors")
     os.makedirs(vector_dir, exist_ok=True)
 
     print("Running BitLinear reference tests and generating test vectors...")

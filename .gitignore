@@ -1,3 +1,15 @@
+# Compiled binaries
+fpga_erven/hls/reference/bitlinear_test
+fpga_erven/hls/reference/*.o
+
+# Python cache
 __pycache__/
-*.o
-*.out
+*.pyc
+*.pyo
+
+# Vitis/Vivado generated files (pour plus tard)
+*.jou
+*.log
+*.str
+vivado_*.backup*/
+.Xil/

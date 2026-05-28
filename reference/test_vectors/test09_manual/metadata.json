@@ -1,0 +1,10 @@
+{
+  "label": "test09_manual",
+  "M": 2,
+  "K": 3,
+  "activation_dtype": "int8",
+  "weight_dtype": "ternary",
+  "weight_encoding": "2bit",
+  "output_dtype": "int32",
+  "n_packed_bytes": 2
+}

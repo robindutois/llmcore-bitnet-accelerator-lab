@@ -1,0 +1,10 @@
+{
+  "label": "test10_large",
+  "M": 256,
+  "K": 512,
+  "activation_dtype": "int8",
+  "weight_dtype": "ternary",
+  "weight_encoding": "2bit",
+  "output_dtype": "int32",
+  "n_packed_bytes": 32768
+}
