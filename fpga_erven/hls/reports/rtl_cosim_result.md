@@ -4,88 +4,102 @@
 **Tool:** Vitis HLS 2025.1 / Vivado XSim 2025.1
 **Date:** 2026-06-01
 **Target device:** xczu7ev-ffvc1156-2-e (ZCU106)
-**Testbench:** `testbench_cosim.cpp` (static buffers, no VLAs)
 
 ---
 
-## Result
+## Co-Simulation Runs
+
+Two co-simulation runs were performed, together closing the full validation chain.
+
+### Run 1 — `testbench_cosim.cpp` (randomised data)
+
+Validates that the RTL Verilog produces bit-exact results vs. the inline C++ reference
+across a broad set of matrix shapes and weight distributions.
 
 | Metric | Value |
 |--------|-------|
-| Tests run | 10 |
-| Tests passed | **10** |
-| Tests failed | 0 |
+| Tests | 10 / 10 PASS |
 | RTL simulation time | 831 585 ns |
-| Elapsed wall time | ~1 min 13 s |
-
-**STATUS: ✅ PASS — RTL output matches C++ reference on all 10 test cases.**
+| Testbench | `testbench_cosim.cpp` (static buffers, `rand()` data) |
 
 ---
 
-## Test Cases
+### Run 2 — `testbench_cosim_vectors.cpp` (Week 2 binary test vectors)
 
-| # | Test name | M | K | Result |
-|---|-----------|---|---|--------|
-| 1 | all W=0 | 8 | 16 | ✅ PASS |
-| 2 | all W=+1 | 8 | 16 | ✅ PASS |
-| 3 | all W=-1 | 8 | 16 | ✅ PASS |
-| 4 | x = max int8 (+127) | 8 | 16 | ✅ PASS |
-| 5 | x = min int8 (-128) | 8 | 16 | ✅ PASS |
-| 6 | K not multiple of 4 (K=7) | 4 | 7 | ✅ PASS |
-| 7 | Small matrix — manual check | 2 | 4 | ✅ PASS |
-| 8 | Random M=64 K=128 | 64 | 128 | ✅ PASS |
-| 9 | Random M=128 K=256 | 128 | 256 | ✅ PASS |
-| 10 | Sparse W (~80% zero) | 64 | 128 | ✅ PASS |
+Closes the full chain: **Python reference → .bin files → RTL Verilog**.
+
+The testbench loads the real binary test vectors generated in Week 2 by
+`bitlinear_reference.py` and performs three checks per test vector:
+
+| Check | Comparison | Meaning |
+|-------|-----------|---------|
+| [A] | HLS RTL output vs `expected_output_int32.bin` | RTL matches Python ground truth |
+| [B] | C++ ref output vs `expected_output_int32.bin` | C++ ref matches Python ground truth |
+| [C] | HLS RTL output vs C++ ref output | RTL and C++ ref agree |
+
+#### Results
+
+| Test | M | K | [A] HLS vs Python | [B] C++ vs Python | [C] HLS vs C++ |
+|------|---|---|-------------------|-------------------|----------------|
+| test01_random   | 32  | 64  | ✅ PASS | ✅ PASS | ✅ PASS |
+| test02_W_zero   | 32  | 64  | ✅ PASS | ✅ PASS | ✅ PASS |
+| test03_W_plus1  | 32  | 64  | ✅ PASS | ✅ PASS | ✅ PASS |
+| test04_W_minus1 | 32  | 64  | ✅ PASS | ✅ PASS | ✅ PASS |
+| test05_sparse   | 32  | 64  | ✅ PASS | ✅ PASS | ✅ PASS |
+| test06_dense    | 32  | 64  | ✅ PASS | ✅ PASS | ✅ PASS |
+| test07_xmax     | 32  | 64  | ✅ PASS | ✅ PASS | ✅ PASS |
+| test08_xmin     | 32  | 64  | ✅ PASS | ✅ PASS | ✅ PASS |
+| test09_manual   | 2   | 3   | ✅ PASS | ✅ PASS | ✅ PASS |
+| test10_large    | 256 | 512 | ✅ PASS | ✅ PASS | ✅ PASS |
+
+**STATUS: ✅ PASS — 10 / 10 — All three checks pass on all test vectors.**
 
 ---
 
-## RTL Simulation Progress
-
-XSim inter-transaction progress (10 transactions):
+## Complete Validation Chain
 
 ```
-RTL Simulation : 0 / 10  @ 125 000 ps
-RTL Simulation : 1 / 10  @ 3 895 000 ps
-RTL Simulation : 2 / 10  @ 7 565 000 ps
-RTL Simulation : 3 / 10  @ 11 235 000 ps
-RTL Simulation : 4 / 10  @ 14 905 000 ps
-RTL Simulation : 5 / 10  @ 18 575 000 ps
-RTL Simulation : 6 / 10  @ 20 035 000 ps
-RTL Simulation : 7 / 10  @ 20 905 000 ps
-RTL Simulation : 8 / 10  @ 160 335 000 ps   <- M=64  K=128
-RTL Simulation : 9 / 10  @ 692 085 000 ps   <- M=128 K=256
-RTL Simulation : 10 / 10 @ 831 515 000 ps
+Python reference — bitlinear_reference.py  (Week 2 — 11/11 PASS)
+        ↕  bit-exact match
+.bin test vectors — reference/test_vectors/ (Week 2 — 10 test sets)
+        ↕  bit-exact match  [Check B above]
+C++ reference — bitlinear_reference.cpp     (Week 2 — 21/21 PASS)
+        ↕  bit-exact match
+HLS C-Simulation — bitlinear_hls.cpp        (Week 3 — 10/10 PASS)
+        ↕  bit-exact match
+HLS Synthesis — csynth_design               (Week 4 — II=1, Fmax 136.99 MHz)
+        ↕  bit-exact match  [Check A above]
+RTL Co-Simulation — XSim Verilog            (Week 5 — 10/10 PASS)
+        ↕  pending
+ZCU106 board execution                      (Week 6)
 ```
 
-Tests 8 and 9 dominate simulation time, as expected for larger matrices.
+**The chain from Python reference to synthesised RTL is fully closed and verified.**
 
 ---
 
-## Testbench Fix (Week 5)
+## Technical Notes
 
-The original `testbench.cpp` used C99-style Variable Length Arrays (VLAs)
-which caused a SIGSEGV in the co-sim instrumented environment.
-A new `testbench_cosim.cpp` was written using static global buffers
-(sized to `MAX_M=512, MAX_K=1024`) — same 10 test cases, fully compatible
-with Vitis HLS co-simulation.
+### Testbench design for co-sim compatibility
+- No VLAs — static global buffers sized to `TV_MAX_M=256`, `TV_MAX_K=512`
+- No `std::vector` / `std::ifstream` — C-style `fopen`/`fread` only
+- `TV_BASE_PATH` injected at compile time via `-mflags` in `run_hls_week5_vectors.tcl`
+  using `file normalize [file join [pwd] "../../../reference/test_vectors"]`
+- Fallback default path covers the case where the macro is not set
+
+### Packing format consistency verified
+- Python: `pack_ternary_2bit(W.flatten())` → LSB-first, `code << (j*2)`
+- C++: `pack_flat()` → same bit layout
+- HLS kernel: `flat_idx = m*K+k`, `bit_pair*2` shift → identical decoding
+- K non-multiple of 4: padding bytes are never read by the kernel (flat_max = M*K-1)
 
 ---
 
-## IP Export
+## Files
 
-The HLS IP was exported immediately after co-simulation:
-
-| Output | Path |
-|--------|------|
-| IP archive | `bitlinear_hls_project/solution1/impl/ip/llmcore_hls_bitlinear_hls_1_0.zip` |
-| Export archive | `bitlinear_hls_project/solution1/impl/export.zip` |
-
-Interfaces exported:
-- `s_axi_CTRL` — AXI-Lite control (ap_start, ap_done, M, K)
-- `s_axi_control` — AXI-Lite scalar ports (x, W_packed, y base addresses)
-- `m_axi_MEM_IN` — AXI4 full, activation vector read
-- `m_axi_MEM_W` — AXI4 full, packed weight read
-- `m_axi_MEM_OUT` — AXI4 full, output vector write
-
-**Next step (Week 6):** Import IP into Vivado block design, connect to Zynq PS
-HP/GP ports, generate bitstream, run on ZCU106 board.
+| File | Role |
+|------|------|
+| `testbench_cosim.cpp` | Co-sim testbench with randomised data (Run 1) |
+| `testbench_cosim_vectors.cpp` | Co-sim testbench loading Week 2 .bin files (Run 2) |
+| `run_hls_week5.tcl` | TCL for Run 1 |
+| `run_hls_week5_vectors.tcl` | TCL for Run 2 (injects `TV_BASE_PATH`) |
