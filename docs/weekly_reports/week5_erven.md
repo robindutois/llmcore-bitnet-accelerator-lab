@@ -25,7 +25,7 @@ Export the HLS IP as a Vivado IP catalog archive for block design integration.
 | `vitis_hls` command not found in PATH | Used `/tools/Xilinx/2025.1/Vitis/bin/vitis-run --mode hls --tcl` |
 | `features.tcl` load error with unwrapped binary | Switched to `vitis-run` wrapper — resolves all Tcl path issues |
 | `pack_flat` linker error in co-sim | Added `pack_ternary_2bit.cpp` and `unpack_ternary_2bit.cpp` as `-tb` files |
-| SIGSEGV in co-sim instrumented environment | VLAs in `testbench.cpp` replaced by static global buffers in `testbench_cosim.cpp` |
+| SIGSEGV in co-sim instrumented environment | VLAs in original `testbench.cpp` replaced by static global buffers — unified back into `testbench.cpp` |
 | Duplicate `main` symbol | `open_project -reset` + `open_solution -reset` to clear cached `testbench.cpp` |
 
 ## Correctness
@@ -65,8 +65,8 @@ None. Week 5 success criterion achieved: HLS IP exported and validated by RTL co
 
 ## Week 5 Deliverable Checklist
 
-- [x] `fpga_erven/hls/bitlinear/testbench_cosim.cpp` (co-sim compatible testbench)
-- [x] `fpga_erven/hls/bitlinear/run_hls_week5.tcl` (co-sim + export script)
+- [x] `fpga_erven/hls/bitlinear/testbench.cpp` (unified C-sim + co-sim testbench)
+- [x] `fpga_erven/hls/bitlinear/run_hls.tcl` (canonical script: csim + csynth + cosim + export)
 - [x] `fpga_erven/hls/reports/rtl_cosim_result.md`
 - [x] `docs/weekly_reports/week5_erven.md`
 - [x] IP archive: `bitlinear_hls_project/solution1/impl/ip/llmcore_hls_bitlinear_hls_1_0.zip`

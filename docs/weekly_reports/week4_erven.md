@@ -9,7 +9,7 @@
 Run HLS synthesis (`csynth_design`) on the BitLinear kernel. Record LUT / FF / BRAM / DSP usage and estimated latency. Produce `synthesis_report.md`, `resource_estimate.md`, `latency_estimate.md`.
 
 ## What worked
-- HLS synthesis completed successfully via `run_hls_synth_only.tcl`
+- HLS synthesis completed successfully via `run_hls.tcl`
 - **II = 1 achieved** on both LOAD_X and INNER_LOOP pipelines
 - **Fmax estimated at 136.99 MHz** — 37% above the 100 MHz target clock
 - All loop constraints satisfied (`HLS 200-790`)
@@ -65,7 +65,7 @@ None. Week 4 success criterion achieved: HLS synthesis completes without errors.
 
 ## Week 4 Deliverable Checklist
 
-- [x] `fpga_erven/hls/bitlinear/run_hls_synth_only.tcl`
+- [x] `fpga_erven/hls/bitlinear/run_hls.tcl`
 - [x] `fpga_erven/hls/bitlinear/bitlinear_hls.h` (updated — `ap_int.h` removed)
 - [x] `fpga_erven/hls/reports/synthesis_report.md`
 - [x] `fpga_erven/hls/reports/resource_estimate.md`
