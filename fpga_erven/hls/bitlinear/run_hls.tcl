@@ -59,7 +59,7 @@ add_files bitlinear_hls.h
 # Testbench files
 # testbench_cosim_vectors.cpp: co-sim compatible, loads real Week 2 .bin test vectors
 # Validates full chain: Python(S2) -> .bin -> C++ ref -> HLS csim -> RTL
-add_files -tb testbench_cosim_vectors.cpp
+add_files -tb testbench.cpp
 add_files -tb tv_path_generated.h
 add_files -tb ../packing/pack_ternary_2bit.cpp
 add_files -tb ../packing/pack_ternary_2bit.h
