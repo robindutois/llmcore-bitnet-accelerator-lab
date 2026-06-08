@@ -6,7 +6,7 @@
 #include <stdexcept>
 
 // Déclaration de ta fonction CPU
-extern "C" void bitlinear_cpu(const int8_t* x, const int8_t* W, int32_t* y, int M, int K);
+extern "C" void bitlinear_cpu_packed(const int8_t* x, const uint8_t* W_packed, int32_t* y, int M, int K);
 
 // Fonction pour lire les Golden Vectors d'Erven
 template<typename T>
@@ -35,16 +35,21 @@ int main() {
         std::string path = "../reference/test_vectors/" + test + "/";
         
         try {
+
             auto x = read_binary_file<int8_t>(path + "activation_int8.bin");
-            auto W = read_binary_file<int8_t>(path + "weight_ternary_unpacked.bin");
+            
+            // LECTURE DU FICHIER COMPRESSÉ (en uint8_t)
+            auto W_packed = read_binary_file<uint8_t>(path + "weight_ternary_packed_2bit.bin");
+            
             auto expected_y = read_binary_file<int32_t>(path + "expected_output_int32.bin");
 
             int K = x.size();
             int M = expected_y.size();
             std::vector<int32_t> actual_y(M, 0);
 
-            bitlinear_cpu(x.data(), W.data(), actual_y.data(), M, K);
-
+            // On injecte les poids compressés dans notre nouvelle fonction
+            bitlinear_cpu_packed(x.data(), W_packed.data(), actual_y.data(), M, K);
+            
             bool passed = true;
             for (int i = 0; i < M; ++i) {
                 if (actual_y[i] != expected_y[i]) {
