@@ -31,4 +31,4 @@ fpga_erven/hls/bitlinear/tv_path_generated.h
 fpga_erven/hls/bitlinear/testbench_cosim_vectors
 
 #Robin
-run_cpu_tests
+run_cpu_testsfpga_erven/vitis_project/bitlinear_system/
