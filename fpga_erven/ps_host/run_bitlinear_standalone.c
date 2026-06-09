@@ -78,6 +78,8 @@ static s32 dma_y[MAX_M]         __attribute__((aligned(64)));
 volatile int g_passed = 0;
 volatile int g_total  = 0;
 volatile int g_done   = 0;
+volatile unsigned int g_total_us = 0;
+volatile unsigned int g_avg_us   = 0;
 
 #define POLL_TIMEOUT_US  5000000
 
@@ -239,21 +241,19 @@ int main(void)
             xil_printf("  -> %d mismatch(es)\r\n", r.mm);
     }
 
-    {
-        u32 tot_us = (freq > 0)
-            ? (u32)(total_ticks / (freq / 1000000ULL)) : 0;
-        u32 avg_us = (total > 0 && freq > 0)
-            ? (u32)(total_ticks / ((XTime)total * (freq / 1000000ULL))) : 0;
-        xil_printf("=== RESULT: %d/%d PASS  total=%uus  avg=%uus ===\r\n",
-                   passed, total, tot_us, avg_us);
-    }
+       u32 tot_us = (freq > 0)
+        ? (u32)(total_ticks / (freq / 1000000ULL)) : 0;
+    u32 avg_us = (total > 0 && freq > 0)
+        ? (u32)(total_ticks / ((XTime)total * (freq / 1000000ULL))) : 0;
+    xil_printf("=== RESULT: %d/%d PASS  total=%uus  avg=%uus ===\r\n",
+               passed, total, tot_us, avg_us);
+    
+    g_total_us = tot_us;
+    g_avg_us   = avg_us;
+    g_passed   = passed;
+    g_total    = total;
+    g_done     = (int) 0xDEADBEEF;
 
-    /* Write sentinels for XSCT readback (no UART needed) */
-    g_passed = passed;
-    g_total  = total;
-    g_done   = (int)0xDEADBEEF;
-
-/* Remplace wfe par un spin interruptible par le debugger */
     while (1)
         __asm__ volatile("nop");
 
