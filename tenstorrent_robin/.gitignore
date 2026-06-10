@@ -1,2 +1,4 @@
 *.safetensors
 *_meta.json
+run_cpu_tests
+libbitlinear.so
