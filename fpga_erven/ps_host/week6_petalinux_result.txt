@@ -1,0 +1,17 @@
+
+=== BitLinear-FPGA Alpha - ZCU106 Linux - Week 6 ===
+CTRL=0xA0000000  CTRL2=0xA0010000
+[ok] IP ap_ctrl=0x00000004
+DMA phys: x=0x70000000  W=0x70020000  y=0x70001000
+Test                       M     K    Lat(us) Result
+test01_random             32    64         97 PASS
+test02_W_zero             32    64        118 PASS
+test03_W_plus1            32    64         98 PASS
+test04_W_minus1           32    64         98 PASS
+test05_sparse             32    64         97 PASS
+test06_dense              32    64         97 PASS
+test07_xmax               32    64         98 PASS
+test08_xmin               32    64         97 PASS
+test09_manual              2     3          2 PASS
+test10_large             256   512       5471 PASS
+=== RESULT: 10/10 PASS  total=6273 us  avg=627 us ===
