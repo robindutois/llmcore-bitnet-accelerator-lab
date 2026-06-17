@@ -2,3 +2,5 @@
 *_meta.json
 run_cpu_tests
 libbitlinear.so
+build/
+logs/

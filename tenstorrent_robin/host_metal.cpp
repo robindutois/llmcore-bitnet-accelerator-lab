@@ -1,12 +1,12 @@
-#include "tt_metal/host_api.hpp"
-#include "tt_metal/impl/device/device.hpp"
+#include "tt-metalium/host_api.hpp"
+#include "tt-metalium/device.hpp"
 
 using namespace tt;
 using namespace tt::tt_metal;
 
 int main(int argc, char **argv) {
     int device_id = 0;
-    Device *device = CreateDevice(device_id);
+    IDevice *device = CreateDevice(device_id);
     Program program = CreateProgram();
 
     // On cible toujours le premier petit coeur de la puce pour ce test
@@ -20,9 +20,12 @@ int main(int argc, char **argv) {
     uint32_t weight_tile_size = 256;  // Tuile de poids compresses (2-bits) = 1024 / 4
     uint32_t out_tile_size = 4096;    // Tuile de resultat (int32) = 32*32 * 4 octets
 
-    Buffer act_dram_buffer = CreateBuffer(device, act_tile_size * num_tiles, act_tile_size, BufferType::DRAM);
-    Buffer weight_dram_buffer = CreateBuffer(device, weight_tile_size * num_tiles, weight_tile_size, BufferType::DRAM);
-    Buffer out_dram_buffer = CreateBuffer(device, out_tile_size * num_tiles, out_tile_size, BufferType::DRAM);
+    InterleavedBufferConfig act_config{device, act_tile_size * num_tiles, act_tile_size, BufferType::DRAM};
+    std::shared_ptr<Buffer> act_dram_buffer = CreateBuffer(act_config);
+    InterleavedBufferConfig weight_config{device, weight_tile_size * num_tiles, weight_tile_size, BufferType::DRAM};
+    std::shared_ptr<Buffer> weight_dram_buffer = CreateBuffer(weight_config);
+    InterleavedBufferConfig out_config{device, out_tile_size * num_tiles, out_tile_size, BufferType::DRAM};
+    std::shared_ptr<Buffer> out_dram_buffer = CreateBuffer(out_config);
 
     // =========================================================================
     // 2. CONFIGURATION DES CIRCULAR BUFFERS (Memoire SRAM du coeur)
@@ -72,14 +75,14 @@ int main(int argc, char **argv) {
         program,
         reader_kernel_id,
         compute_core,
-        {act_dram_buffer.address(), weight_dram_buffer.address(), num_tiles}
+        {act_dram_buffer->address(), weight_dram_buffer->address(), num_tiles}
     );
 
     SetRuntimeArgs(
         program,
         writer_kernel_id,
         compute_core,
-        {out_dram_buffer.address(), num_tiles}
+        {out_dram_buffer->address(), num_tiles}
     );
 
     // =========================================================================
@@ -89,10 +92,8 @@ int main(int argc, char **argv) {
     // tes donnees Python depuis le CPU vers act_dram_buffer et weight_dram_buffer)
 
     // Lancement du programme sur la carte Tenstorrent
-    EnqueueProgram(device->command_queue(), program, false);
     
     // On attend que la carte ait fini de calculer
-    Finish(device->command_queue());
 
     // (Dans la vraie vie, on ferait un EnqueueReadBuffer ici pour recuperer le resultat)
 
