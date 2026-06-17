@@ -1,0 +1,4 @@
+date,hardware,model,prompt_tokens,output_tokens,time_to_first_token_ms,total_latency_ms,tokens_per_second,power_watt,notes
+2026-06-17 09:52:50,Tenstorrent Blackhole (API),EdgeBox-TT Alpha v1,5,32,3,6,0.0,N/A,Validation Layer 4
+2026-06-17 09:52:51,Tenstorrent Blackhole (API),EdgeBox-TT Alpha v1,6,15,0,1,0.0,N/A,Validation Layer 4
+2026-06-17 09:52:52,Tenstorrent Blackhole (API),EdgeBox-TT Alpha v1,8,17,0,1,0.0,N/A,Validation Layer 4
