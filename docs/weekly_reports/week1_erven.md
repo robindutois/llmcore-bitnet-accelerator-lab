@@ -1,4 +1,4 @@
-# Week 1 Daily Report — Erven Le Bivic
+# Week 1 Report — Erven Le Bivic
 
 **Student:** Erven Le Bivic  
 **Project:** BitLinear-FPGA Alpha — ZCU106  
@@ -6,17 +6,12 @@
 
 ---
 
-## Day 1 — 2026-05-27
+## Objective
 
-**Date:** 2026-05-27  
-**Student:** Erven Le Bivic  
-**Project:** BitLinear-FPGA Alpha  
-
-**Today's target:**  
 Verify ZCU106 board and toolchain. Build and run a PS-PL hello world
 demonstrating ARM → AXI → FPGA GPIO → LEDs.
 
-**What worked:**
+## What Worked
 - ZCU106 board powered on and detected via JTAG
 - Vivado 2025.1 installed and operational
 - Block design created: Zynq PS + AXI GPIO + SmartConnect + Reset
@@ -26,26 +21,21 @@ demonstrating ARM → AXI → FPGA GPIO → LEDs.
 - `main.c` using `Xil_Out32` compiled and ran successfully on psu_cortexa53_0
 - All 8 user LEDs (DS32–DS39) illuminated on the physical board
 
-**What failed:**
+## What Failed
 - First attempt used board automation which connected GPIO to DIP switches
   instead of LEDs → XDC pin mismatch → incorrect behavior
 - `XPAR_AXI_GPIO_0_DEVICE_ID` not available in Vitis 2025.1 SDT flow →
   `XGpio_Initialize` call did not compile
 - HDL wrapper not created automatically → `BD 41-237` top module error
 
-**Benchmark result:**
+## Benchmark Result
 - Bitstream size: ~19 MB
 - Implementation time: ~15 minutes
 - LUT: ~3%, FF: ~2%, BRAM: ~4%, DSP: ~1%
 - Timing WNS: +7.554 ns ✓
 
-**Blocking issue:** None — all issues resolved during the session.
-
-**Tomorrow's target:**  
-Week 2 — Begin C++ BitLinear reference implementation:
-- `fpga_erven/hls/reference/bitlinear_reference.cpp`
-- `fpga_erven/hls/reference/bitlinear_reference_test.cpp`
-- `reference/test_vectors/` (binary test vector files)
+## Blocking Issue
+None — all issues resolved during the week.
 
 ---
 
