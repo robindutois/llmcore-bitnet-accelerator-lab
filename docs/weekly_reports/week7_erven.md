@@ -1,6 +1,6 @@
 # Week 7 Report — Matrix Scaling and Latency Benchmarking
 **Student**: Erven LE BIVIC — Seoul National University
-**Date**: 2026-06-17
+**Date**: 2026-06-24
 **Project**: BitLinear-FPGA Alpha — LLMCore Accelerator Lab
 
 ---

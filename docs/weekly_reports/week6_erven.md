@@ -1,6 +1,6 @@
 # Week 6 Report — First ZCU106 PS-PL Execution
 **Student**: Erven LE BIVIC — Seoul National University
-**Date**: 2026-06-08
+**Date**: 2026-06-17
 **Project**: BitLinear-FPGA Alpha — LLMCore Accelerator Lab
 
 ---

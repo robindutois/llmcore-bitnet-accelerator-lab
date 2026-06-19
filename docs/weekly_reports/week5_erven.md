@@ -1,15 +1,15 @@
-# Week 5 — Daily Report
+# Week 5 Report — Erven LE BIVIC
 **Student:** Erven LE BIVIC
 **Project:** BitLinear-FPGA Alpha
-**Date:** 2026-06-01
+**Date:** 2026-06-10
 
 ---
 
-## Today's target
+## Objective
 Run RTL co-simulation to validate that the generated Verilog matches the C++ reference.
 Export the HLS IP as a Vivado IP catalog archive for block design integration.
 
-## What worked
+## What Worked
 
 - **RTL co-simulation: 10 / 10 PASS** — XSim confirmed the Verilog RTL produces
   bit-exact outputs matching the C++ reference across all 10 test cases,
@@ -18,7 +18,7 @@ Export the HLS IP as a Vivado IP catalog archive for block design integration.
 - Synthesis results confirmed identical to Week 4: II=1, Fmax 136.99 MHz.
 - `vitis-run --mode hls` identified as the correct launcher (replaces deprecated `vitis_hls`).
 
-## What failed / Issues resolved
+## What Failed / Issues Resolved
 
 | Issue | Fix |
 |-------|-----|
@@ -48,11 +48,11 @@ The complete verification chain is now:
 RTL simulation total time: 831 585 ns (simulated clock cycles at 1 ps resolution).
 Largest test (M=128, K=256): completed at 692 085 ns simulation time.
 
-## Blocking issue
+## Blocking Issue
 
 None. Week 5 success criterion achieved: HLS IP exported and validated by RTL co-simulation.
 
-## Next week's target (Week 6)
+## Next Steps (Week 6)
 
 1. Import `llmcore_hls_bitlinear_hls_1_0.zip` into Vivado as custom IP
 2. Build block design: Zynq UltraScale+ PS + AXI SmartConnect + BitLinear IP

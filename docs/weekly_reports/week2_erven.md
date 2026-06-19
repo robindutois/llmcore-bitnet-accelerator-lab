@@ -1,7 +1,7 @@
 # Weekly Report — Week 2
 **Student:** Erven LE BIVIC  
 **Project:** BitLinear-FPGA Alpha — ZCU106 FPGA BitNet Accelerator  
-**Date:** 2026-05-27  
+**Date:** 2026-06-03  
 
 ---
 

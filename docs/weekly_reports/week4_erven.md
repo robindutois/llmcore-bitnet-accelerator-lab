@@ -1,14 +1,14 @@
-# Week 4 — Daily Report
+# Week 4 Report — Erven LE BIVIC
 **Student:** Erven LE BIVIC
 **Project:** BitLinear-FPGA Alpha
-**Date:** 2026-06-01
+**Date:** 2026-06-10
 
 ---
 
-## Today's target
+## Objective
 Run HLS synthesis (`csynth_design`) on the BitLinear kernel. Record LUT / FF / BRAM / DSP usage and estimated latency. Produce `synthesis_report.md`, `resource_estimate.md`, `latency_estimate.md`.
 
-## What worked
+## What Worked
 - HLS synthesis completed successfully via `run_hls.tcl`
 - **II = 1 achieved** on both LOAD_X and INNER_LOOP pipelines
 - **Fmax estimated at 136.99 MHz** — 37% above the 100 MHz target clock
@@ -17,7 +17,7 @@ Run HLS synthesis (`csynth_design`) on the BitLinear kernel. Record LUT / FF / B
 - Resource utilization very low: LUT 1%, FF <1%, BRAM 1%, DSP 0%
 - C-simulation skipped legitimately — already validated Week 3 (10/10 PASS, no code changes)
 
-## What failed / Toolchain issues resolved
+## What Failed / Toolchain Issues Resolved
 Vitis HLS 2025.1 on this machine had an incomplete installation — the `lnx64.o/tools/` directory was missing several components. The following symlinks and fixes were required before synthesis could run:
 
 | Issue | Fix |
@@ -33,7 +33,7 @@ Vitis HLS 2025.1 on this machine had an incomplete installation — the `lnx64.o
 
 All symlinks created with `sudo` — no Vitis reinstallation required.
 
-## Synthesis results
+## Synthesis Results
 
 | Metric | Result | Target | Status |
 |--------|--------|--------|--------|
@@ -47,13 +47,13 @@ All symlinks created with `sudo` — no Vitis reinstallation required.
 | DSP | 0 / 1 728 (0%) | — | ✅ |
 | URAM | 0 / 96 (0%) | — | ✅ |
 
-## Analysis note
+## Analysis Note
 Current utilization is intentionally low — the kernel is a single-pipeline sequential implementation (1 weight/cycle). Unrolling the INNER_LOOP by factor 4 or 8 in Week 8 will multiply throughput proportionally and bring utilization to a more representative level (~5–10% LUT). The low footprint confirms the design fits comfortably on ZCU106 and leaves ample room for PS-PL integration and future optimization.
 
-## Blocking issue
+## Blocking Issue
 None. Week 4 success criterion achieved: HLS synthesis completes without errors.
 
-## Next week's target (Week 5)
+## Next Steps (Week 5)
 - Export HLS IP from Vitis HLS
 - Create Vivado block design with Zynq PS + AXI SmartConnect + BitLinear IP
 - Define AXI-DMA or memory-mapped interface
