@@ -3,7 +3,7 @@ import time
 import csv
 import urllib.request
 
-API_URL = "http://127.0.0.1:18080/generate"
+API_URL = "http://127.0.0.1:8000/generate"
 PROMPTS_FILE = "benchmark_prompts.json"
 RESULTS_FILE = "results.csv"
 
