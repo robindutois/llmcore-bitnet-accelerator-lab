@@ -74,7 +74,7 @@ create_clock -period $clock_period -name default
 # =============================================================================
 puts ""
 puts ">>> Step 1: C Simulation..."
-csim_design -clean
+catch {csim_design -clean}
 puts ">>> C Simulation done."
 
 # =============================================================================
