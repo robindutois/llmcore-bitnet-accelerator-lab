@@ -92,7 +92,7 @@ Expected output for each step: all tests PASS.
 
 ---
 
-## Hardware results (FPGA track — current state: Week 5 of 10)
+## Hardware results (FPGA track — current state: Week 8 of 10)
 
 | Metric | Value |
 |--------|-------|
@@ -120,7 +120,7 @@ HLS Synthesis      (Week 4 — II=1, Fmax 136.99 MHz)
        ↕ bit-exact
 RTL Co-Simulation  (Week 5 — 10/10 PASS)
        ↕ pending
-ZCU106 board       (Week 6 — in progress)
+ZCU106 board       (Week 8 — 8/8 PASS, 0.176 GOPS, 3.7× speedup)
 ```
 
 ---
@@ -143,5 +143,5 @@ ZCU106 board       (Week 6 — in progress)
 | Track | Status |
 |-------|--------|
 | `reference/` — Common BitLinear reference | Complete |
-| `fpga_erven/` — FPGA BitLinear-FPGA Alpha | Week 5/10 complete |
+| `fpga_erven/` — FPGA BitLinear-FPGA Alpha | Week 8/10 complete |
 | `tenstorrent_robin/` — Tenstorrent EdgeBox-TT Alpha | Not included in this archive |
