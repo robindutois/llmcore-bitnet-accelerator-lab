@@ -27,7 +27,7 @@ llmcore-bitnet-accelerator-lab/
 ├── tenstorrent_robin/          # Tenstorrent track — EdgeBox-TT Alpha (in progress)
 │
 └── docs/
-    └── weekly_reports/         # Weekly progress reports (Erven, weeks 1–5)
+    └── weekly_reports/         # Weekly progress reports (Erven, weeks 1–8)
 ```
 
 ---

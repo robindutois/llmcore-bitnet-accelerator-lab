@@ -1,4 +1,4 @@
-# Resource Report — Week 7
+# Resource Report — Week 8
 ## BitLinear-FPGA Alpha — ZCU106 Resource Utilization
 
 **Author:** Erven Le Bivic — Seoul National University — LLM Core AI
