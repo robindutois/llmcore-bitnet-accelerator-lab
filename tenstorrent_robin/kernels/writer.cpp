@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "dataflow_api.h"
+#include "api/dataflow/dataflow_api.h"
 
 void kernel_main() {
     uint32_t dst_addr  = get_arg_val<uint32_t>(0); // Adresse de destination en DRAM

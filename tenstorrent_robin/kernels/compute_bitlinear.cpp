@@ -1,99 +1,88 @@
-// ============================================================================
-// EdgeBox-TT Alpha: BitNet Compute Kernel (Semaine 8 - Optimisé)
-// Auteur: Robin Dutois
-// Cible: Tenstorrent Blackhole RISC-V Cores (TRISC)
-// ============================================================================
+#include <cstdint>
+#include "api/compute/compute_kernel_api.h"
+#include "api/compute/cb_api.h"
+#include "api/compute/eltwise_binary.h"
+#include "api/compute/matmul.h"
+#include "api/compute/tile_move_copy.h"
 
-#include <stdint.h>
-#include "compute_kernel_api/common.h"
-#include "compute_kernel_api/cb_api.h"
-#include "compute_kernel_api/math.h"
+// Helper pour la mémoire physique Tenstorrent (Tile Layout = 4 faces 16x16)
+inline uint32_t get_tile_idx(uint32_t m, uint32_t n) {
+    uint32_t face_m = m >> 4; // m / 16
+    uint32_t face_n = n >> 4; // n / 16
+    uint32_t face_idx = (face_m << 1) + face_n; // Donne la face 0, 1, 2, ou 3
+    uint32_t local_m = m & 15; // m % 16
+    uint32_t local_n = n & 15; // n % 16
+    return (face_idx << 8) + (local_m << 4) + local_n; // face_idx * 256 + local_m * 16 + local_n
+}
 
-namespace NAMESPACE {
-
-// Table de décodage ternaire fixée en SRAM L1 (Ultra-rapide)
-// Mappe les valeurs 2-bits (00, 01, 10) vers des multiplicateurs entiers (0, 1, -1)
+// Table de décodage ternaire fixée en SRAM L1 
 static const int8_t decode_table[4] = {0, 1, -1, 0};
 
-void MAIN {
-    // Les constantes du bloc matériel (Tile) - Standard TT-Metalium = 32x32
+void kernel_main() {
+    // === TRISC 0 : UNPACK ===
+    #if defined(UCK_CHLKC_UNPACK)
     constexpr uint32_t TILE_WIDTH = 32;
     constexpr uint32_t TILE_HEIGHT = 32;
     
-    // Identifiants des Circular Buffers (CB)
-    // cb_in0 : Activations (int8) provenant de reader.cpp
-    // cb_in1 : Poids compressés (2-bits) provenant de reader.cpp
-    // cb_out0: Résultats accumulés (int32) envoyés vers writer.cpp
     constexpr uint32_t cb_in0 = tt::CB::c_in0;
-    constexpr uint32_t cb_in1 =  tt::CB::c_in1;
+    constexpr uint32_t cb_in1 = tt::CB::c_in1;
     constexpr uint32_t cb_out0 = tt::CB::c_out0;
 
-    // Phase d'initialisation matérielle requise par l'architecture
-    binary_op_init_common(cb_in0, cb_in1, cb_out0);
-
-    // Boucle principale (à adapter selon le nombre de tiles à traiter par cœur)
-    // Pour cet exemple, on traite un seul Tile (bloc de 32x32)
     uint32_t num_tiles = 1; 
 
     for(uint32_t t = 0; t < num_tiles; ++t) {
-        // --- 1. SYNCHRONISATION (Wait) ---
-        // Le cœur s'endort jusqu'à ce que reader.cpp ait déposé les données
         cb_wait_front(cb_in0, 1);
         cb_wait_front(cb_in1, 1);
-        cb_reserve_back(cb_out0, 1); // Réserve une place pour le résultat
+        cb_reserve_back(cb_out0, 1);
 
-        // --- 2. RÉCUPÉRATION DES POINTEURS SRAM ---
-        // On récupère les adresses physiques directes dans le cache L1
-        int8_t* ptr_act = (int8_t*)get_read_ptr(cb_in0);
-        uint8_t* ptr_w_packed = (uint8_t*)get_read_ptr(cb_in1);
-        int32_t* ptr_out = (int32_t*)get_write_ptr(cb_out0);
+        // Retrait de la multiplication par 16 (les pointeurs sont déjà des adresses absolues)
+        int8_t* ptr_act = (int8_t*)get_local_cb_interface(cb_in0).fifo_rd_ptr;
+        uint8_t* ptr_w_packed = (uint8_t*)get_local_cb_interface(cb_in1).fifo_rd_ptr;
+        int32_t* ptr_out = (int32_t*)get_local_cb_interface(cb_out0).fifo_wr_ptr;
 
-        // --- 3. EXÉCUTION DE L'ALGORITHME BITNET OPTIMISÉ ---
-        // Pour chaque ligne de sortie 'm'
         for (uint32_t m = 0; m < TILE_HEIGHT; ++m) {
-            int32_t accumulator = 0;
-            
-            // Pour chaque élément de la ligne 'k'
-            for (uint32_t k = 0; k < TILE_WIDTH; ++k) {
-                // Index global aplati (1D)
-                uint32_t global_idx = m * TILE_WIDTH + k;
+            for (uint32_t n = 0; n < TILE_WIDTH; ++n) {
+                int32_t accumulator = 0;
+                
+                for (uint32_t k = 0; k < TILE_WIDTH; ++k) {
+                    
+                    // CORRECTION 2 : Lecture au format physique (Faces)
+                    uint32_t act_idx = get_tile_idx(m, k);
+                    int8_t x_val = ptr_act[act_idx];
 
-                // ========================================================
-                // OPTIMISATION CRITIQUE (SEMAINE 8) : BIT-SHIFTING
-                // Remplacement de (global_idx / 4) par un décalage de bits
-                // Remplacement de (global_idx % 4) par un masque binaire
-                // ========================================================
-                uint32_t byte_idx = global_idx >> 2; 
-                uint32_t bit_pos  = global_idx & 3;  
+                    uint32_t w_idx = get_tile_idx(k, n);
+                    uint32_t byte_idx = w_idx >> 2; 
+                    uint32_t bit_pos  = w_idx & 3;  
 
-                // Extraction de l'octet compressé contenant 4 poids
-                uint8_t packed_byte = ptr_w_packed[byte_idx];
+                    uint8_t packed_byte = ptr_w_packed[byte_idx];
+                    uint8_t two_bit_val = (packed_byte >> (bit_pos * 2)) & 0x03;
 
-                // Extraction des 2 bits spécifiques pour ce poids 'k'
-                // Décalage pour amener les bits voulus à droite, puis masque avec 0x03 (00000011 en binaire)
-                uint8_t two_bit_val = (packed_byte >> (bit_pos * 2)) & 0x03;
+                    int8_t w_val = decode_table[two_bit_val];
 
-                // Résolution de la vraie valeur du poids (-1, 0, ou +1) via la SRAM L1
-                int8_t w_val = decode_table[two_bit_val];
-
-                // Lecture de l'activation
-                int8_t x_val = ptr_act[global_idx];
-
-                // Opérateur Linéaire BitNet (Sans multiplication complexe)
-                accumulator += (x_val * w_val); // Le compilar C++ transformera ceci en additions/soustractions directes
+                    // MAC BitLinear 
+                    if (w_val == 1) {
+                        accumulator += static_cast<int32_t>(x_val);
+                    } else if (w_val == -1) {
+                        accumulator -= static_cast<int32_t>(x_val);
+                    }
+                }
+                
+                // Écriture au format physique (Faces)
+                uint32_t out_idx = get_tile_idx(m, n);
+                ptr_out[out_idx] = accumulator;
             }
-            
-            // Stockage du résultat final de la ligne 'm'
-            ptr_out[m] = accumulator;
         }
 
-        // --- 4. SYNCHRONISATION DE SORTIE (Pop & Push) ---
-        // On libère la place dans les tampons d'entrée pour le prochain tour
         cb_pop_front(cb_in0, 1);
         cb_pop_front(cb_in1, 1);
-        
-        // On prévient writer.cpp que le résultat est prêt à être expédié
         cb_push_back(cb_out0, 1);
     }
-}
+
+    // === TRISC 1 : MATH ===
+    #elif defined(UCK_CHLKC_MATH)
+    
+    // === TRISC 2 : PACK ===
+    #elif defined(UCK_CHLKC_PACK)
+    
+    #endif
 }
