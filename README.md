@@ -92,20 +92,20 @@ Expected output for each step: all tests PASS.
 
 ---
 
-## Hardware results (FPGA track — current state: Week 8 of 10)
+## Hardware results (FPGA track — current state: Week 9 of 10)
 
 | Metric | Value |
 |--------|-------|
 | Platform | AMD/Xilinx ZCU106 (xczu7ev-ffvc1156-2-e) |
 | Tool | Vitis HLS 2025.1 |
 | Clock | 10 ns target → 7.30 ns estimated (136.99 MHz) |
-| II (inner loop) | 1 (1 weight per cycle) |
-| LUT | 4 378 / 230 400 (1.9%) |
-| FF | 3 465 / 460 800 (0.8%) |
+| II (inner loop) | 1 (4 weights per cycle, Week 8 4-lane decode) |
+| LUT | 4 352 / 230 400 (1.9%) |
+| FF | 3 366 / 460 800 (0.7%) |
 | BRAM | 8 / 624 (1.3%) |
 | **DSP** | **0** — no multipliers, all ternary add/sub |
-| Latency (M=64, K=128) | ~89.6 µs @ 100 MHz (analytical) |
-| Correctness | Python → C++ → HLS C-sim → RTL co-sim: all PASS |
+| Throughput (512×1024, on-board) | 0.176 GOPS total-call — see `feasibility_analysis.md` for the full 8-size sweep (compute-phase speedup is a uniform ×3.5-3.9; total-call speedup is size-dependent and *negative* below ~128×128 due to fixed PS-PL overhead) |
+| Correctness | Python → C++ → HLS C-sim → RTL co-sim → board: 10/10 (K=3 fix implemented & standalone-verified, Vitis/RTL/board re-verification pending Week 10) |
 
 ### Validation chain
 
@@ -143,5 +143,5 @@ ZCU106 board       (Week 8 — 8/8 PASS, 0.176 GOPS, 3.7× speedup)
 | Track | Status |
 |-------|--------|
 | `reference/` — Common BitLinear reference | Complete |
-| `fpga_erven/` — FPGA BitLinear-FPGA Alpha | Week 8/10 complete |
+| `fpga_erven/` — FPGA BitLinear-FPGA Alpha | Week 9/10 complete |
 | `tenstorrent_robin/` — Tenstorrent EdgeBox-TT Alpha | Not included in this archive |

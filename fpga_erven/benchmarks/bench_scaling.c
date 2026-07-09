@@ -72,6 +72,8 @@ typedef struct { int M; int K; } Size;
 static const Size SIZES[] = {
     {  64,   64 },
     {  64,  128 },   /* *** CDC required *** */
+    {   5,    7 },   /* K%4 fix validation -- K not a multiple of 4, remove or
+                         keep as a permanent regression test once confirmed PASS */
     { 128,  128 },
     { 128,  256 },   /* *** CDC required *** */
     { 256,  256 },
@@ -198,27 +200,56 @@ typedef struct {
 
 static SR bench_one(int M, int K) {
     SR r; memset(&r, 0, sizeof(r));
-    r.M = M; r.K = K; r.ops = 2LL * M * K;
+    r.M = M; r.K = K; r.ops = 2LL * M * K;   /* report TRUE K/ops, not K_pad */
+
+    /* ---------------------------------------------------------------
+     * K%4 fix (Week 8 regression, see hls/reports/c_sim_result_week8.md):
+     * bitlinear_hls() indexes packed weight bytes with a FLAT,
+     * row-independent formula (byte_idx = (m*K+k)/4). A row only starts
+     * on a byte boundary if m*K is itself a multiple of 4 for every m,
+     * which holds only when K is a multiple of 4. Round K up to K_pad
+     * and pack each row independently at that width -- mathematically
+     * a no-op vs. the original flat scheme when K is already a
+     * multiple of 4 (K_pad == K), so this applies unconditionally with
+     * no special-casing needed.
+     * --------------------------------------------------------------- */
+    int K_pad = ((K + 3) / 4) * 4;
 
     static int32_t y_ref[MAX_M];
-    size_t packed = (size_t)M * K / 4;
-    size_t x_bytes = (size_t)K;
+    size_t packed  = (size_t)M * K_pad / 4;  /* exact now: K_pad%4==0 */
+    size_t x_bytes = (size_t)K_pad;          /* was K -- must cover padding */
     size_t y_bytes = (size_t)M * sizeof(int32_t);
 
-    /* Random activations */
+    /* Random activations: true K values, then zero-pad the tail to K_pad */
     for (int k = 0; k < K; k++)
         dma_x[k] = (int8_t)((rand() % 255) - 127);
+    for (int k = K; k < K_pad; k++)
+        dma_x[k] = 0;
 
-    /* Random ternary weights, packed */
+    /* Random ternary weights, packed row-independently at K_pad width
+       (each row padded to K_pad with zero-weight codes -- fixes the K%4
+       byte-misalignment bug). */
     memset(dma_W, 0, packed);
-    for (int flat = 0; flat < M * K; flat++) {
-        int rv = rand() % 3;
-        int8_t w = (rv == 0) ? 0 : (rv == 1) ? 1 : -1;
-        dma_W[flat / 4] |= (uint8_t)(encode_w(w) << ((flat % 4) * 2));
+    {
+        int bytes_per_row = K_pad / 4;
+        for (int m = 0; m < M; m++) {
+            for (int k = 0; k < K; k++) {
+                int rv = rand() % 3;
+                int8_t w = (rv == 0) ? 0 : (rv == 1) ? 1 : -1;
+                int byte_in_row = k / 4;
+                int lane = k % 4;
+                dma_W[m * bytes_per_row + byte_in_row] |=
+                    (uint8_t)(encode_w(w) << (lane * 2));
+            }
+            /* k = K..K_pad-1 left at 0 from the memset above --
+               zero-weight padding, contributes nothing to the sum. */
+        }
     }
 
-    /* Golden reference */
-    cpu_bitlinear(dma_x, dma_W, y_ref, M, K);
+    /* Golden reference: called with K_pad to match the K_pad-strided
+       packing above (dma_x and dma_W are both zero-padded consistently,
+       so this yields exactly the same sum as the true, unpadded K). */
+    cpu_bitlinear(dma_x, dma_W, y_ref, M, K_pad);
 
     /* ---- Phase latency arrays ---- */
     uint64_t lat_setup[BENCH_RUNS];
@@ -229,7 +260,7 @@ static SR bench_one(int M, int K) {
     /* ---- Warmup (untimed, absorbs first-call costs) ---- */
     /* Pre-load registers once before warmup */
     reg_wr(ctrl_map, REG_M_DATA, (uint32_t)M);
-    reg_wr(ctrl_map, REG_K_DATA, (uint32_t)K);
+    reg_wr(ctrl_map, REG_K_DATA, (uint32_t)K_pad);  /* was K */
     reg_wr64(ctrl2_map, REG_X_LO, REG_X_HI, phys_x);
     reg_wr64(ctrl2_map, REG_W_LO, REG_W_HI, phys_W);
     reg_wr64(ctrl2_map, REG_Y_LO, REG_Y_HI, phys_y);
@@ -252,7 +283,7 @@ static SR bench_one(int M, int K) {
         /* Phase 1: setup */
         t0 = now_ns();
         reg_wr(ctrl_map, REG_M_DATA, (uint32_t)M);
-        reg_wr(ctrl_map, REG_K_DATA, (uint32_t)K);
+        reg_wr(ctrl_map, REG_K_DATA, (uint32_t)K_pad);  /* was K */
         reg_wr64(ctrl2_map, REG_X_LO, REG_X_HI, phys_x);
         reg_wr64(ctrl2_map, REG_W_LO, REG_W_HI, phys_W);
         reg_wr64(ctrl2_map, REG_Y_LO, REG_Y_HI, phys_y);

@@ -4,54 +4,44 @@
 **Author:** Erven Le Bivic — Seoul National University — LLM Core AI
 **Device:** xczu7ev-ffvc1156-2-e (ZCU106 — Zynq UltraScale+ EV)
 **Toolchain:** Vitis HLS 2025.1 (synthesis) / Vivado 2025.1 (implementation)
+**Kernel version:** 4-lane parallel decode (Week 8 optimization)
+
+> **Revision note:** This report previously described the Week 7 single-lane
+> kernel and had not been updated after the Week 8 4-lane optimization. It has
+> been regenerated using the figures already verified in the Week 8 Technical
+> Note. Any number below marked **[carried forward]** was not independently
+> re-measured for the 4-lane kernel and should be re-confirmed with a fresh
+> Vivado implementation run before final submission.
 
 ---
 
-## 1. HLS IP Core (BitLinear operator alone)
+## 1. HLS IP Core (BitLinear operator alone) — **[VERIFIED, Week 8 post-synthesis report]**
 
-Numbers from Vitis HLS post-synthesis report (Week 4 / unchanged in Week 7).
+| Resource | Week 7 (1-lane) | Week 8 (4-lane) | Δ | Available | Week 8 Utilization |
+|---|---|---|---|---|---|
+| LUT | 4 378 | 4 352 | −26 | 230 400 | 1.89 % |
+| FF (Register) | 3 465 | 3 366 | −99 | 460 800 | 0.73 % |
+| BRAM_18K | 8 | 8 | 0 | 624 | 1.28 % |
+| DSP48 | **0** | **0** | 0 | 1 728 | **0.00 %** |
+| URAM | 0 | 0 | 0 | 96 | 0.00 % |
+| Fmax (estimated) | 136.99 MHz | 136.99 MHz | 0 | — | — |
 
-| Resource | Used | Available | Utilization |
-|---|---|---|---|
-| LUT | 4 378 | 230 400 | 1.90 % |
-| FF (Register) | 3 465 | 460 800 | 0.75 % |
-| BRAM_18K | 8 | 624 | 1.28 % |
-| DSP48 | **0** | 1 728 | **0.00 %** |
-| URAM | 0 | 96 | 0.00 % |
+Source: `LE_BIVIC_Erven_Week_8_technical_note.pdf`, Table 3.
 
-### LUT/FF breakdown by module
-
-| Module | BRAM_18K | DSP | FF | LUT |
-|---|---|---|---|---|
-| CTRL s_axi (M, K, return) | 0 | 0 | 112 | 168 |
-| MEM_IN m_axi (x activations) | 2 | 0 | 707 | 757 |
-| MEM_W m_axi (packed weights) | 2 | 0 | 707 | 757 |
-| MEM_OUT m_axi (y output) | 0 | 0 | 611 | 666 |
-| INNER_LOOP pipeline (compute) | 0 | 0 | 589 | 850 |
-| LOAD_X pipeline (data load) | 0 | 0 | 65 | 126 |
-| control s_axi (x, W, y addresses) | 0 | 0 | 240 | 424 |
-| x_local buffer (4× partitioned) | 4 | 0 | 0 | 0 |
-| Expression + Mux + Registers | 0 | 0 | 434 | 630 |
-| **Total** | **8** | **0** | **3 465** | **4 378** |
-
-**Key observations:**
-- **0 DSP** — all ternary arithmetic ({−1, 0, +1} × int8) maps to LUT add/sub.
-  No multiplication required.
-- **AXI infrastructure dominates** — the three m_axi adapters account for 57 %
-  of FF and 51 % of LUT. The actual compute (INNER_LOOP) uses only 589 FF
-  and 850 LUT.
-- **x_local BRAM partition** — 4 BRAM_18K result from `ARRAY_PARTITION cyclic
-  factor=4` on the 1 024-element int8 activation buffer, enabling 4-way
-  parallel access for II = 1.
+**Key point — the 4-lane restructuring cost nothing in resources.** The
+Week 7→8 change eliminated redundant AXI reads (each packed byte was
+previously re-read once per weight it contains; Week 8 reads it once and
+decodes all 4 weights in parallel). LUT/FF actually *decreased* slightly. The
+earlier "×4 unrolling ≈ +3 400 LUT" naive estimate (Week 7 headroom table,
+§4 below) did **not** materialize — the real implementation is far cheaper
+than a naive unroll would suggest, because it removes wasted transactions
+rather than adding parallel hardware.
 
 ---
 
-## 2. Full PS+PL System (Vivado routed implementation)
+## 2. Full PS+PL System (Vivado routed implementation) — **[carried forward, NOT independently re-verified for Week 8]**
 
-Numbers from Vivado post-implementation utilization report (Week 6 block design,
-unchanged in Week 7).
-
-| Resource | Used | Available | Utilization |
+| Resource | Week 6/7 (last verified) | Available | Utilization (Week 7 basis) |
 |---|---|---|---|
 | LUT | 5 161 | 230 400 | 2.24 % |
 | FF (Register) | 6 781 | 460 800 | 1.47 % |
@@ -59,10 +49,15 @@ unchanged in Week 7).
 | DSP48 | **0** | 1 728 | **0.00 %** |
 | URAM | 0 | 96 | 0.00 % |
 
-The PS+PL delta over the IP alone (≈ 783 LUT, ≈ 3 316 FF) comes from AXI
-SmartConnects, clock buffers, and PS interface logic added by the block design.
+**This table has not been regenerated from a Week 8 Vivado implementation
+run.** The IP-alone delta (−26 LUT / −99 FF, see §1) suggests the full-system
+total is now approximately **5 135 LUT / 6 682 FF** if the AXI SmartConnect
+and PS interface logic are unchanged — but this is an inference, not a
+measurement. **Action before final report: re-run Vivado implementation on
+the current 4-lane block design and paste the real
+`bitlinear_system_utilization_placed.rpt` numbers here.**
 
-**Timing (post-implementation):**
+**Timing (last verified, Week 6/7 implementation):**
 
 | Metric | Value |
 |---|---|
@@ -73,7 +68,7 @@ SmartConnects, clock buffers, and PS interface logic added by the block design.
 
 ---
 
-## 3. Power Estimate (Vivado routed, static estimate)
+## 3. Power Estimate — **[carried forward, NOT independently re-verified for Week 8]**
 
 | Component | Power |
 |---|---|
@@ -81,30 +76,46 @@ SmartConnects, clock buffers, and PS interface logic added by the block design.
 | Static | 0.692 W |
 | **Total on-chip** | **3.419 W** |
 
-The TMat Core (INNER_LOOP pipeline) is the primary dynamic consumer within the
-PL; the PS subsystem contributes the majority of static power.
-
-Derived energy efficiency at the sustained throughput plateau:
-
-```
-GOPS/W = 0.048 GOPS / 3.419 W ≈ 0.014 GOPS/W
-```
+Same caveat as §2: this is the last Vivado power report generated (pre-Week
+8). Given the IP-alone resource footprint barely changed, the power draw is
+unlikely to have shifted meaningfully — but this should be confirmed with a
+fresh routed power report, not assumed, before it is cited as a Week 8/9
+number.
 
 ---
 
-## 4. Headroom for Optimisation (Week 8)
+## 4. Energy Efficiency — **[VERIFIED throughput, carried-forward power]**
 
-The current IP uses < 2 % of every resource class, leaving very large margin
-for the next optimisation step.
+Using the Week 8 measured throughput at the largest verified size
+(512×1024, includes ~379 µs fixed PS-PL overhead per the three-phase
+decomposition — see Week 8 Technical Note §4) and the carried-forward power
+figure:
 
-| Optimisation | Expected resource impact |
-|---|---|
-| K-lane unrolling ×4 | ≈ 4× LUT in INNER_LOOP (~3 400 LUT added) |
-| K-lane unrolling ×8 | ≈ 8× LUT in INNER_LOOP (~6 800 LUT added) |
-| On-chip weight buffer (BRAM) | +BRAM, removes DDR round-trip per call |
-| Shared-inversion (mux trick) | ≈ −13 % LUT in compute path |
+```
+GOPS/W (Week 8) = 0.176 / 3.419 ≈ 0.0515 GOPS/W
+```
 
-Even at ×8 unrolling the total LUT budget remains well below 5 % of the ZCU106,
-confirming that parallelism headroom is not the limiting factor — the 3.4×
-resource gap to TerEffic's full accelerator is a device-class difference, not a
-utilisation ceiling on this board.
+versus the Week 7 baseline of ≈ 0.014 GOPS/W — a ≈ 3.7× improvement in
+energy efficiency, tracking the throughput gain, since power did not
+measurably change. **This figure inherits the §3 caveat**: re-confirm once a
+fresh power report exists.
+
+---
+
+## 5. Headroom for Further Optimisation (historical Week 7 estimate — superseded)
+
+The original Week 7 headroom table estimated resource cost for K-lane
+unrolling. It is kept here for traceability but is now known to be
+**inaccurate**: the real Week 8 4-lane implementation used *fewer* resources
+than Week 7, not more.
+
+| Optimisation (Week 7 estimate) | Estimated impact | Actual Week 8 result |
+|---|---|---|
+| K-lane unrolling ×4 | ≈ +3 400 LUT (estimate) | **−26 LUT** (measured) |
+
+For the next step (8-lane), the Week 8 Technical Note (§2.3) identifies a
+concrete risk not captured by a simple LUT estimate: doubling to 8 lanes
+requires two packed-byte reads per iteration on the current 8-bit AXI
+interface, which may degrade the pipeline Initiation Interval from II=1 to
+II=2 — cancelling the intended gain unless the AXI data width is widened to
+16 bits. This was **not attempted or tested** as of Week 8/9.

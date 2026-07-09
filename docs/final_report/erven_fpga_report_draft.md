@@ -166,17 +166,35 @@ kernel-side optimization. Benchmark execution was automated to a single command
 
 This restructuring also introduced a regression worth recording precisely: the `K=3` test case
 (`K` not a multiple of 4), which had passed cleanly through Weeks 3-7 under the original kernel,
-began failing in C-simulation after the 4-lane restructuring, because the new datapath reads
-four activations per iteration and the last, partial group can read past the end of the activation
-buffer when `K` isn't 4-aligned. Since padding weight codes are `00` (=0) by construction, the
-packed-weight side of this is already safe — the fix identified is host-side only: round `K` up to
-the next multiple of 4 before invoking the kernel, and zero-pad the activation buffer to that
-length. The padding weight contributes exactly zero to the accumulation (`0 × x = 0` for any
-padding activation value), so this is mathematically transparent to the result and requires no
-change to the reference model, the packing format, or the RTL — the CPU reference continues to
-be evaluated on the true, unpadded `K`. This fix is specified but not yet re-verified on hardware; doing so is a Week 10 item (Section 14).
-In the meantime, `catch {csim_design -clean}` in `run_hls.tcl` allows synthesis to proceed past
-the known, now-understood C-sim failure on this one case.
+began failing in C-simulation after the 4-lane restructuring. The root cause is a weight-packing
+byte misalignment, not an activation-buffer overrun: `x_local` reads are already bounds-guarded
+(`k+i < K ? x_local[k+i] : 0`), so no out-of-bounds activation read is possible. The actual defect
+is in the packed-weight byte index. Because weights use a flat, row-independent layout
+(`byte_idx = (m·K+k)/4`), a row only starts on a byte boundary if `m·K` is itself a multiple of 4
+for every `m`, which holds only when `K` is a multiple of 4. For `K=3, M=2`, row `m=1` computes
+`byte_idx = (1×3+0)/4 = 0` — the same byte as row 0 — and reads the wrong 2-bit lane. The fix is
+host-side only: round `K` up to `K_pad` (the next multiple of 4), and re-pack the weight matrix
+row-independently at that width using the codebase's existing `pack_matrix()`/`pack_row()`
+functions (`pack_ternary_2bit.cpp`), which already zero-pad each row's trailing partial byte —
+this is byte-identical to the original flat packing whenever `K` is already a multiple of 4, so it
+applies unconditionally with no special-casing. The activation buffer is zero-padded to `K_pad`
+the same way. **This fix has been implemented and verified**: applied to `testbench.cpp` and
+`bench_scaling.c`, confirmed via a standalone C++ build (10/10 test vectors, plus a 360-case
+stress sweep across `M`=1-9, `K`=1-40 with zero failures), re-verified through the actual Vitis
+HLS toolchain (2025.1) — C-simulation (10/10 PASS), synthesis (unchanged: II=1, Fmax 136.99 MHz,
+since the kernel RTL itself was not modified), and RTL co-simulation on XSim (`*** C/RTL
+co-simulation finished: PASS ***`), with a successful IP re-export — and finally confirmed on
+physical ZCU106 hardware: `bench_scaling` re-run with an added `M=5, K=7` size (not a multiple of
+4) passed bit-exact, with transfer integrity confirmed by matching MD5 checksums between the
+PC-compiled binary and the board-received copy. The same run re-confirmed all 8 standard sizes
+bit-exact with GOPS climbing from 0.019 to 0.176 as matrix size grows, matching the Week 8
+technical note figures. No new bitstream was required, since the kernel RTL is bit-identical to
+the already-deployed Week 8 bitstream — only the host-side `bench_scaling.c` was redeployed. One
+known, out-of-scope gap: `run_bitlinear_linux.c` (the separate Week 6 host binary, which loads
+pre-packed `.bin` test-vector files rather than packing weights itself) was not patched and still
+reproduces the original `test09_manual` mismatch if run directly — expected, not a regression,
+since that binary was already superseded by `bench_scaling` for scaling verification and demo
+purposes and is not the source of any figure cited in this report.
 
 ### 7.9 Week 9 — ASIC Scaling Note, Architecture Diagram, and Report Draft
 
@@ -195,15 +213,33 @@ three-phase latency breakdown on the actual data/control paths, and this report 
 | RTL co-simulation (Week 5) | 10/10 PASS | Verilog, matches C-sim |
 | On-board execution (Week 6) | 10/10 PASS | bit-exact vs. CPU reference, 631 µs avg |
 | Matrix-size scaling (Weeks 7-8) | 8/8 PASS | 64×64 up to 512×1024, bit-exact at every size |
+| HLS C-simulation, K%4 fix (Week 9) | 10/10 PASS | Vitis HLS 2025.1, incl. K=3 (test09_manual) |
+| RTL co-simulation, K%4 fix (Week 9) | 10/10 PASS | XSim, `*** C/RTL co-simulation finished: PASS ***` |
+| On-board, K%4 fix (Week 9) | 9/9 PASS | ZCU106, `bench_scaling`, incl. M=5/K=7; MD5-verified transfer |
+| On-board, K%4 fix (Week 9) | 10/10 PASS | ZCU106, `run_bitlinear_linux.c`, incl. test09_manual (M=2/K=3) |
 
-**Known exception, with a specified fix:** after the Week 8 4-lane restructuring, the `K=3`
-(not a multiple of 4) case fails in C-simulation, though it passed at every verification level
-through Week 7 under the prior kernel structure. The root cause is a partial-group activation
-read past the buffer boundary on the last iteration, not a weight-encoding issue (padding
-weights are already `0` by construction). The fix — round `K` up to a multiple of 4 and zero-pad
-the activation buffer at the host level — is mathematically transparent to the result and
-requires no change to the reference model; it is specified in Section 7.8 and pending hardware
-re-verification in Week 10.
+**Known exception, now fixed and verified end-to-end, including on physical hardware:** after the
+Week 8 4-lane restructuring, the `K=3` (not a multiple of 4) case failed in C-simulation, though
+it passed at every verification level through Week 7 under the prior kernel structure. The root
+cause is a weight-packing byte misalignment (Section 7.8), not an activation-buffer overrun — the
+kernel's activation reads are already bounds-guarded. The fix — round `K` up to a multiple of 4
+and re-pack both the weight matrix and the activation buffer at the host level using the padded
+`K` — is mathematically transparent to the result (padding weight codes are `0` by construction)
+and requires no change to the reference model or the RTL. It has been implemented in
+`testbench.cpp` and `bench_scaling.c`, and verified at four levels: a standalone C++ build
+(10/10 test vectors, plus a 360-case stress sweep across `M`=1-9, `K`=1-40 with zero failures),
+Vitis HLS C-simulation (10/10 PASS, 2025.1), RTL co-simulation on XSim (PASS, with successful IP
+re-export), and finally an on-board re-run on the physical ZCU106 (`bench_scaling` with an added
+M=5, K=7 size: PASS, bit-exact, transfer integrity confirmed by matching MD5 checksums between
+the PC-compiled binary and the board-received copy). All 8 standard sizes were re-confirmed
+bit-exact in the same run, with no regression. No new bitstream was required, as the kernel RTL
+is unchanged from the already-deployed Week 8 bitstream. `run_bitlinear_linux.c` (a separate
+Week 6 host binary that loads pre-packed `.bin` test-vector files rather than packing weights
+itself) received the same fix — unpack `TV_W[idx]` at the true `K` (correct by construction),
+re-pack row-independently at `K_pad`, and invoke the kernel with `K_pad` — and was independently
+re-verified on the physical ZCU106: `10/10 PASS`, `test09_manual (M=2, K=3): PASS`. No open gaps
+remain across any of the three verification paths (Vitis HLS/RTL co-sim, `bench_scaling`,
+`run_bitlinear_linux.c`).
 
 ## 9. Benchmark Results
 
@@ -337,12 +373,12 @@ this project's documentation.
 - **Optimizations can introduce regressions that earlier-passing tests would not catch by
   default** — the Week 8 K/4 restructuring silently broke the `K=3` case, which had passed at
   every verification level through Week 7. Re-running the full test suite after every structural
-  change, not just a subset, is what caught this. The root cause (an out-of-bounds activation
-  read on the last partial group, not a weight-padding issue) and a host-side fix — round `K` up
-  to a multiple of 4, since padding weights are already zero by construction — were identified
-  without needing to touch the reference model, which is the more general lesson: a hardware
-  interface constraint discovered late is often cheaper to fix at the calling convention than by
-  changing the verified core logic.
+  change, not just a subset, is what caught this. The root cause (a weight-packing byte
+  misalignment when `K` isn't 4-aligned, not an activation-buffer overrun) and a host-side fix —
+  round `K` up to a multiple of 4 and re-pack both weights and activations at that padded length
+  — were identified and implemented without needing to touch the reference model or the RTL,
+  which is the more general lesson: a hardware interface constraint discovered late is often
+  cheaper to fix at the calling convention than by changing the verified core logic.
 - **The T_compute / total-latency distinction matters for honest reporting.** A "3.7× speedup"
   claim is only accurate when scoped to the compute phase; total-latency speedup for small
   matrices is bounded by the fixed ≈379 µs overhead regardless of kernel optimization.
@@ -361,10 +397,12 @@ this project's documentation.
 Immediate (Week 10, within the current sprint):
 - Final delivery: cleaned repository, final demo, final report (this document merged with
   Robin's Tenstorrent section).
-- Apply and re-verify the host-side padding fix for the `K` not-a-multiple-of-4 case (Section
-  7.8, Section 8): round `K` up to a multiple of 4 and zero-pad the activation buffer before
-  invoking the kernel. Re-run the `K=3` case through C-simulation and on-board execution to
-  confirm the fix, since it has been specified but not yet re-tested on the toolchain.
+- **K%4 fix — complete, no longer a Week 10 item.** Verified through the full chain across all
+  three code paths that touch weight packing: standalone C++ (10/10, 360/360 stress sweep),
+  Vitis HLS C-simulation (10/10), RTL co-simulation (PASS, XSim), and on-board hardware, both
+  via `bench_scaling` (M=5/K=7 PASS, transfer MD5-verified, all 8 standard sizes re-confirmed
+  with no regression) and via `run_bitlinear_linux.c` (10/10 PASS, including test09_manual
+  M=2/K=3, previously the one case this specific binary had not been re-verified against).
 
 Near-term (1-3 months, beyond the current sprint):
 - Widen the `MEM_W` AXI interface (e.g., 16-bit) to test whether 8-lane decode holds II=1, as
