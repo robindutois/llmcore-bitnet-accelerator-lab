@@ -1,17 +1,31 @@
 // =============================================================================
-// run_bitlinear.cpp — Week 6
+// run_bitlinear.cpp — Week 6 (Week 9 — cast/TBD compile issues fixed)
 // PS Host Program — BitLinear-FPGA Alpha
 // Student : Erven LE BIVIC — Seoul National University
 // =============================================================================
 //
 // *** LEGACY — SUPERSEDED BY run_bitlinear_linux.c ***
-// This is an early Week 6 draft, kept for traceability only. It has known
-// issues (TBD placeholder AXI addresses below, and a build error under
-// strict C++ standard flags due to a volatile-qualifier cast). It is NOT
-// the deliverable host program and is not used to produce any figure cited
-// in the final report, resource_report.md, or feasibility_analysis.md.
-// The real, tested, board-verified Week 6+ PetaLinux/Linux host program is
-// run_bitlinear_linux.c in this same directory — use that one.
+// This file uses a different, lower-level DMA/cache-coherency strategy than
+// the deliverable host program: raw /dev/mem + manual inline ARM64 cache
+// maintenance instructions (dc civac / dsb sy / isb), rather than the
+// /dev/udmabuf kernel-driver-managed buffers with udmabuf_sync() used by
+// run_bitlinear_linux.c. This is very likely an earlier attempt superseded
+// specifically because of the cache-coherency issues that motivated the
+// switch to u-dma-buf (see Week 6 notes) — not merely an outdated filename.
+//
+// As of Week 9, the volatile-qualifier cast bug that previously blocked
+// compilation under standard C++ is fixed, and the placeholder AXI address
+// comments are resolved (values were already numerically correct, matching
+// run_bitlinear_linux.c). It now compiles cleanly for its target (aarch64;
+// note it will NOT compile natively on x86_64 due to the inline ARM64 asm,
+// same as every other PS host file in this repo). It has NOT been re-run on
+// hardware, its raw /dev/mem cache-coherency approach has not been
+// re-validated, and it is not used to produce any figure cited in the final
+// report, resource_report.md, or feasibility_analysis.md.
+//
+// The real, tested, board-verified host program is run_bitlinear_linux.c in
+// this same directory — use that one for anything that needs to touch
+// actual hardware.
 // *** END LEGACY NOTICE ***
 //
 // Runs the BitLinear HLS IP on the ZCU106 board and compares the FPGA output
@@ -71,8 +85,8 @@
 // These are the physical addresses of the two AXI-Lite slave interfaces
 // as assigned by Vivado. Default range is 0xA0000000–0xAFFFFFFF for ZCU106 PL.
 
-#define CTRL_PHYS_BASE     0xA0000000ULL   // s_axi_CTRL  — TBD: check Vivado addr editor
-#define CONTROL_PHYS_BASE  0xA0010000ULL   // s_axi_control — TBD: check Vivado addr editor
+#define CTRL_PHYS_BASE     0xA0000000ULL   // s_axi_CTRL     — confirmed, matches run_bitlinear_linux.c (board-verified)
+#define CONTROL_PHYS_BASE  0xA0010000ULL   // s_axi_control  — confirmed, matches run_bitlinear_linux.c (board-verified)
 #define AXILITE_MAP_SIZE   0x10000UL       // 64 KB per interface
 
 // =============================================================================
@@ -595,10 +609,11 @@ int main(int argc, char *argv[]) {
     // -------------------------------------------------------------------------
     munlock(raw, DMA_TOTAL_SIZE);
     free(raw);
-    munmap(const_cast<uint8_t *>(const_cast<uint8_t *>(
-           reinterpret_cast<const uint8_t *>(ctrl_reg))), AXILITE_MAP_SIZE);
-    munmap(const_cast<uint8_t *>(
-           reinterpret_cast<const uint8_t *>(control_reg)), AXILITE_MAP_SIZE);
+    // Stripping `volatile` requires const_cast, not reinterpret_cast (a
+    // reinterpret_cast cannot remove cv-qualifiers in standard C++ — this
+    // was the original compile error under strict standard flags).
+    munmap(const_cast<uint8_t *>(ctrl_reg), AXILITE_MAP_SIZE);
+    munmap(const_cast<uint8_t *>(control_reg), AXILITE_MAP_SIZE);
     close(g_devmem_fd);
 
     return (passed == total) ? 0 : 1;

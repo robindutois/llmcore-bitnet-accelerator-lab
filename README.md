@@ -105,7 +105,7 @@ Expected output for each step: all tests PASS.
 | BRAM | 8 / 624 (1.3%) |
 | **DSP** | **0** — no multipliers, all ternary add/sub |
 | Throughput (512×1024, on-board) | 0.176 GOPS total-call — see `feasibility_analysis.md` for the full 8-size sweep (compute-phase speedup is a uniform ×3.5-3.9; total-call speedup is size-dependent and *negative* below ~128×128 due to fixed PS-PL overhead) |
-| Correctness | Python → C++ → HLS C-sim → RTL co-sim → board: 10/10 (K=3 fix implemented & standalone-verified, Vitis/RTL/board re-verification pending Week 10) |
+| Correctness | Python → C++ → HLS C-sim → RTL co-sim → board: 10/10, including K%4 fix — verified on physical ZCU106 hardware via both `bench_scaling` (M=5/K=7, MD5-verified transfer) and `run_bitlinear_linux.c` (10/10, incl. test09_manual M=2/K=3); see `fpga_erven/hls/reports/c_sim_result_week8.md` §9 |
 
 ### Validation chain
 
@@ -119,8 +119,8 @@ HLS C-Simulation   (Week 3 — 10/10 PASS)
 HLS Synthesis      (Week 4 — II=1, Fmax 136.99 MHz)
        ↕ bit-exact
 RTL Co-Simulation  (Week 5 — 10/10 PASS)
-       ↕ pending
-ZCU106 board       (Week 8 — 8/8 PASS, 0.176 GOPS, 3.7× speedup)
+       ↕ bit-exact
+ZCU106 board       (Week 8/9 — 8/8 PASS + K%4 fix 10/10 PASS, 0.176 GOPS, 3.7× speedup)
 ```
 
 ---
