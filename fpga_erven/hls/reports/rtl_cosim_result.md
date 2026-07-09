@@ -5,6 +5,12 @@
 **Date:** 2026-06-01  
 **Target device:** xczu7ev-ffvc1156-2-e (ZCU106)
 
+> **This is a historical, dated snapshot — not a living status document.**
+> "Pending" below reflects Week 5's state, before board execution existed.
+> For current correctness status (Week 9, incl. the K%4 fix verified on
+> hardware), see `fpga_erven/hls/reports/c_sim_result_week8.md` §7-9.
+
+
 ---
 
 ## Co-Simulation Result

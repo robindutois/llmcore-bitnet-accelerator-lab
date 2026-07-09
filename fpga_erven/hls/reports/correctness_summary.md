@@ -3,6 +3,12 @@
 **Student:** Erven LE BIVIC
 **Last updated:** Week 5 (2026-06-01)
 
+> **This is a historical, dated snapshot — not a living status document.**
+> "Pending" below reflects Week 5's state, before board execution existed.
+> For current correctness status (Week 9, incl. the K%4 fix verified on
+> hardware), see `fpga_erven/hls/reports/c_sim_result_week8.md` §7-9 and
+> `docs/final_report/erven_fpga_report_draft.md` §8.
+
 ---
 
 ## Correctness Principle
