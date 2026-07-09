@@ -59,19 +59,28 @@ The crossover point is between 64×128 and 128×128.
 
 ## 3. Resource and power facts — [VERIFIED, matches `resource_report.md`]
 
-| Metric | BitLinear IP alone (Week 8, 4-lane) | Full PS+PL system | Device total (ZCU106) |
-|---|---|---|---|
-| LUT | 4 352 (1.89%) | ~5 135 (carried forward — see note) | 230 400 |
-| FF / Register | 3 366 | ~6 682 (carried forward) | 460 800 |
-| BRAM (RAMB18) | 8 | ~16 | 624 |
-| DSP | **0** | **0** | 1 728 |
-| On-chip power | — | 3.419 W (carried forward from Week 6/7 Vivado report — see note) | — |
+| Metric | IP alone, pre-implementation estimate (Vitis HLS) | IP alone, post-P&R (in system) | Full PS+PL system, post-P&R | Device total (ZCU106) |
+|---|---|---|---|---|
+| LUT | 4 352 (1.89%) | 2 973 | 5 120 (2.22%) | 230 400 |
+| FF / Register | 3 366 | 4 068 | 6 773 (1.47%) | 460 800 |
+| BRAM (RAMB18) | 8 | — | 2 (0.32%) | 624 |
+| DSP | **0** | **0** | **0** | 1 728 |
+| On-chip power | — | — | 3.419 W (2.728 dynamic + 0.692 static) | — |
 
-**Note on the full-system and power figures:** these were not re-measured
-after the Week 8 kernel change. Since the IP-alone delta is small (−26 LUT,
-−99 FF), the full-system figures are estimated by carrying the same delta
-forward, not independently confirmed. Recommend a fresh Vivado
-implementation + power report before final submission.
+Source: Vivado post-implementation reports
+(`bitlinear_system_wrapper_utilization_placed.rpt`,
+`bitlinear_system_wrapper_power_routed.rpt`), plus a hierarchical
+utilization breakdown for the IP-alone-in-system figures. RTL identity
+confirmed (`diff`, exit 0, 1728/1728 lines identical) against the
+independently-regenerated and verified Week 8 4-lane kernel.
+
+**Why the IP-alone LUT count differs between columns:** the pre-implementation
+Vitis HLS estimate (4 352) and the post-place-and-route measurement (2 973)
+describe different stages of the flow, not a discrepancy — Vivado's placer
+optimizes and merges logic across the AXI interconnect boundary in ways an
+isolated HLS synthesis estimate cannot predict. Both are legitimate; use the
+post-P&R figure for anything claiming to describe what is actually on the
+device.
 
 ```
 GOPS/W (Week 8, best case, 512×1024 total-latency basis) = 0.176 / 3.419 ≈ 0.0515 GOPS/W
@@ -95,10 +104,16 @@ ZCU106 total LUTs           :  230 400 LUTs
 ```
 
 A single TerEffic TMat Core needs 3.4× more LUTs than the entire ZCU106
-contains. Replicating the current whole 4-lane IP (4 352 LUT for 4 lanes)
-gives an upper bound of 230 400 / 4 352 ≈ 53 replicas × 4 lanes ≈ **212
+contains. Replicating the current whole 4-lane IP now uses the **measured
+post-place-and-route** figure (2 973 LUT for 4 lanes, §3 — not the
+pre-implementation HLS estimate of 4 352, which overstates the real cost)
+gives an upper bound of 230 400 / 2 973 ≈ 77.5 replicas × 4 lanes ≈ **310
 lanes** at the LUT limit — before the DDR4 bandwidth ceiling (an estimated
-50–60 usable lanes, Week 8 Technical Note §3.3) becomes binding first.
+50–60 usable lanes, Week 8 Technical Note §3.3) becomes binding first, by a
+wide margin. This supersedes an earlier draft's "~212 lanes" figure, which
+used the pre-implementation estimate; both were always dominated by the
+bandwidth ceiling as the actual binding constraint, so this revision changes
+the LUT-limit headroom number but not the practical conclusion.
 
 ### 4.2 No HBM on ZCU106
 
@@ -120,9 +135,10 @@ ZCU106 has none.
   fixed overhead. This nuance should appear anywhere the "3.7×" headline
   number is used without a size qualifier.
 
-- **Open items before this document is final:**
-  1. Re-run Vivado implementation to confirm the full-system LUT/FF/power
-     numbers in §3 (currently carried forward from Week 6/7).
+- **Open items — this document is now final on data, one judgment call remains:**
+  1. ~~Re-run Vivado implementation to confirm full-system LUT/FF/power~~ —
+     **done**: §3 now uses measured post-implementation figures, RTL-identity
+     confirmed against the verified Week 8 4-lane kernel.
   2. Decide whether investor-facing material should lead with compute-phase
      speedup (uniform, always ×3.5–3.9) or total-latency speedup (size
      dependent, negative below 128×128) — and say which one explicitly.

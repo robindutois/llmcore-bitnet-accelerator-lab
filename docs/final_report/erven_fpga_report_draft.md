@@ -335,30 +335,96 @@ verified, auditable IP core.
 
 ## 12. ASIC Roadmap
 
-A full handoff note (`asic_handoff_note.md`, produced Week 9) separates what this project has
-verified and what a chip-design team would still need to decide. Summary:
+This section separates what this project has verified and is expected to transfer to any target
+silicon, from what is specific to the ZCU106/FPGA implementation, and lists the decisions a
+chip-design team would still need to make. No ASIC synthesis, standard-cell mapping, or
+place-and-route has been run against this design; no area, gate-count, timing, or power figure
+for an ASIC implementation is claimed anywhere in this section. Everything below is either a
+measured FPGA result (labeled as such) or a structural property of the algorithm/datapath
+expected to transfer to any target technology, not a silicon estimate.
 
-**Verified and portable to any target:** the operation, the 2-bit ternary encoding, the packing
-layout, and — critically — the zero-multiplier arithmetic structure (every ternary weight
-resolves to skip/add/subtract, mapped to LUT logic here and to a small standard-cell
-adder/subtractor tree on an ASIC). The weight-bandwidth relationship
-`BW_required(N) = (N/4) × f × 1 byte` is a genuine physical consequence of the packing density,
-independent of target silicon.
+### 12.1 The operation, precisely
 
-**Not portable — FPGA/board-specific:** the ≈379 µs fixed overhead (an artifact of the
-AXI-Lite/Linux/`u-dma-buf` driver stack), the specific ≈17 GB/s DDR4 ceiling (a ZCU106 board
-configuration fact), and the current 136.99 MHz Fmax (an FPGA-fabric routing characteristic,
-not an ASIC number).
+```
+y[m] = Σ_k  W[m,k] × x[k]        W[m,k] ∈ {-1, 0, +1} (ternary)   x[k] ∈ int8
+y[m] ∈ int32 (raw accumulator, no rescaling applied)
+```
 
-**Open decisions for a chip design, not answered by this project:** datapath width beyond 4
-lanes, where weights reside during compute (on-die SRAM vs. HBM-class external memory — two
-real precedents exist in TerEffic's published fully-on-chip and HBM-assisted architectures,
-cited as prior art, not as this project's own result), and where activation rescaling is integrated,
-since the current kernel deliberately outputs a raw int32 accumulator with no rescaling applied.
+Because `W` is ternary, every multiply reduces to skip/add/subtract (`W=0` → skip, `W=+1` →
+`acc += x[k]`, `W=-1` → `acc -= x[k]`). **This is the single fact that matters most for a
+chip-design evaluation: there is no multiplier in the datapath.** On the FPGA this maps to LUT
+logic (0 DSP48 used, verified — Section 9/10). On an ASIC this maps to a small adder/subtractor
+tree in standard cells — no multiplier macro, no DSP-equivalent hard IP required at any point.
 
-**Explicitly not attempted:** no ASIC synthesis, standard-cell mapping, or place-and-route has
-been run against this design; no area, gate-count, or ASIC power figure is claimed anywhere in
-this project's documentation.
+### 12.2 Verified and portable to any target
+
+- **Zero-multiplier arithmetic** — a property of ternary weights, not of the FPGA fabric; holds
+  identically for a standard-cell adder tree.
+- **2-bit weight encoding, 4 weights/byte** (`00`=0, `01`=+1, `10`=−1, `11`=reserved) — 4×
+  storage reduction vs. int8 weights.
+- **The weight-bandwidth relationship**: for an `N`-lane datapath reading one packed byte (4
+  weights) per cycle-group at clock frequency `f`, `BW_required(N) = (N/4) × f × 1 byte`. This
+  follows directly from the packing density and lane count, and holds on any target.
+- **The end-to-end verification chain** (Python → C++ → HLS C-sim → RTL co-sim → board,
+  bit-exact at every stage, including the `K` not-a-multiple-of-4 case — Section 8) is a
+  methodology, not a hardware artifact, and is directly reusable for an ASIC RTL handoff.
+- **Correctness margin**: for the largest supported size (M=512, K=1024), max int8 magnitude,
+  `127 × 1024 = 130,048 ≪ 2^31`. Wide int32 accumulator headroom at every currently supported
+  size.
+
+### 12.3 Not portable — FPGA/board-specific
+
+| Figure | Value (measured) | Why it doesn't transfer |
+|---|---|---|
+| Fixed per-call overhead | ≈379 µs (≈253 µs setup, ≈126 µs readback) | Artifact of the AXI-Lite register protocol, Linux, and the `u-dma-buf` driver stack on this PS-PL boundary. An ASIC IP block with a direct on-chip bus interface would have its own, uncharacterized-here, interface latency. |
+| DDR4 bandwidth ceiling | ≈17 GB/s (ZCU106-specific) | A board configuration fact (SODIMM part, controller, single channel). Says nothing about an ASIC design's memory bandwidth, which depends entirely on the memory technology chosen (§12.4). |
+| 136.99 MHz Fmax | HLS-estimated, FPGA place-and-route dependent | An FPGA fabric routing characteristic. Not indicative of an ASIC clock target, which depends on standard-cell library, process node, and physical design — none evaluated here. |
+| 3.419 W on-chip power | Vivado routed estimate (Section 10) | FPGA power model (LUT/FF toggle-rate-based). Not translatable to an ASIC power figure without a standard-cell power analysis. |
+| ~310 usable parallel lanes at the LUT limit | Order-of-magnitude estimate (feasibility_analysis.md §4.1), bandwidth-bound in practice at ~50-60 | Specific to this board's DDR4 controller and shared AXI HP ports. An ASIC design's usable lane count is bounded by whatever memory system it is paired with (§12.4). |
+
+### 12.4 Open decisions for a chip-design flow (not answered by this project)
+
+- **Datapath width beyond 4 lanes** — this project verified 4 lanes at zero additional resource
+  cost over 1 lane (Section 10), and identified but did not implement a path to 8 lanes,
+  contingent on widening the weight-read interface (Week 8 Technical Note §2.3). A chip design
+  targeting higher throughput needs to decide the target lane count as a primary sizing decision.
+- **Where weights reside during compute** — two real precedents exist in TerEffic's own
+  published work (arXiv:2502.16473v2), cited as prior art, not as this project's result: a
+  fully-on-chip variant (weights in on-die SRAM, small-model-only, lowest latency) and an
+  HBM-assisted variant (off-chip weights, larger models, batch-parallelism needed to hide HBM
+  latency). This project used off-chip DDR4 throughout — it demonstrates the ternary MAC
+  operator is correct and multiplier-free, not either TerEffic memory pattern.
+- **Activation rescaling integration point** — the verified kernel outputs a raw int32
+  accumulator with no rescaling applied. A full BitNet/BitLinear layer requires activation
+  quantization (absmax-based, per the BitNet 1.58b paper) with a scale factor applied before or
+  after this operator; where that step is integrated is deliberately left open here, since it is
+  orthogonal to verifying the ternary MAC itself.
+- **1.6-bit weight packing** — TerEffic's 5-weights-per-byte encoding (vs. this project's 2
+  bits/weight) is denser and was not implemented here; adopting it would require re-deriving,
+  not reusing, this project's packing/indexing logic (see §12.5).
+
+### 12.5 A packing detail worth carrying forward: row-alignment constraint
+
+Not a resource or performance number, but a correctness constraint a chip-design implementation
+of this same packing scheme should be aware of from the start, since this project discovered it
+as a Week 8 regression (Section 7.8, Section 8): if a datapath reads one packed byte (4 weights)
+per cycle-group and computes the byte index from a flat, row-independent `(row×K+col)/4`
+formula, every row only starts on a byte boundary if `row×K` is a multiple of 4 for every row —
+true only when `K` itself is a multiple of 4. A from-scratch ASIC datapath is free to either
+enforce a `K % 4 == 0` (or `K % lanes == 0`) precondition at the interface contract level, or
+build row-aware indexing in natively — either is simpler than discovering this after the fact.
+
+### 12.6 Summary
+
+What this project hands off is a **verified, multiplier-free ternary MAC operator** — correct
+bit-exact through a full Python-to-hardware chain, measured at zero DSP usage and a compact FPGA
+footprint (2,973 LUT post-place-and-route for a 4-lane datapath, 1.29% of a 230,400-LUT device —
+Section 10) — together with a precise, measured account of which numbers describe the algorithm
+(portable, §12.2) and which describe this particular board and toolchain (not portable, §12.3).
+It is evidence that the core arithmetic scales without multiplier hardware, at the scale this
+project verified it. It is not an ASIC area, power, or timing estimate, and none of the open
+decisions in §12.4 are answered here; they are the actual starting points for a chip-design
+evaluation.
 
 ## 13. Lessons Learned
 
@@ -420,7 +486,9 @@ Near-term (1-3 months, beyond the current sprint):
 
 ---
 
-*Companion artifacts referenced in this report: `asic_handoff_note.md` (Section 12),
+*Companion artifacts referenced in this report:
 `bitlinear_fpga_architecture.png` (PS↔PL↔DDR4 diagram with measured latency), `resource_report.md`,
 `feasibility_analysis.md`, and the Week 7/Week 8 weekly reports and technical notes, all under the
-`erven_1` branch of `robindutois/llmcore-bitnet-accelerator-lab`.*
+`erven_1` branch of `robindutois/llmcore-bitnet-accelerator-lab`. (Section 12 contains the full
+ASIC handoff analysis directly — no separate handoff-note file is committed, per the CDC's Week
+9/10 deliverable list, which names no such standalone file.)*
