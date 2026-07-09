@@ -4,6 +4,16 @@
 // Student : Erven LE BIVIC — Seoul National University
 // =============================================================================
 //
+// *** LEGACY — SUPERSEDED BY run_bitlinear_linux.c ***
+// This is an early Week 6 draft, kept for traceability only. It has known
+// issues (TBD placeholder AXI addresses below, and a build error under
+// strict C++ standard flags due to a volatile-qualifier cast). It is NOT
+// the deliverable host program and is not used to produce any figure cited
+// in the final report, resource_report.md, or feasibility_analysis.md.
+// The real, tested, board-verified Week 6+ PetaLinux/Linux host program is
+// run_bitlinear_linux.c in this same directory — use that one.
+// *** END LEGACY NOTICE ***
+//
 // Runs the BitLinear HLS IP on the ZCU106 board and compares the FPGA output
 // against the golden reference binary test vectors from Week 2.
 //

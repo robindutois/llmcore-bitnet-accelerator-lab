@@ -2,7 +2,7 @@
 
 **ZCU106-based BitNet/TerEffic-style ternary BitLinear accelerator**
 **Student:** Erven LE BIVIC — Seoul National University / LLM Core AI
-**Current state:** Week 8 of 10 complete
+**Current state:** Week 9 of 10 complete
 
 ---
 
@@ -81,6 +81,11 @@ fpga_erven/
     ├── bitlinear_w8.bit              # Week 8 bitstream (4-lane kernel, ZCU106)
     ├── create_block_design.tcl       # Vivado block design script
     └── block_design_notes.md         # PS-PL architecture notes
+    (bitlinear_system/, the full Vivado project — synth/impl runs, checkpoints,
+     generated IP — is deliberately .gitignore'd: ~166 MB, fully machine- and
+     path-specific, and fully reproducible from create_block_design.tcl plus
+     the exported HLS IP. The bitstream, Tcl script, and notes above are the
+     actual portable deliverables; the full project directory is not.)
 ```
 
 ---
