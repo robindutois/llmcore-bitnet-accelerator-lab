@@ -31,8 +31,13 @@ fpga_erven/hls/bitlinear/tv_path_generated.h
 fpga_erven/hls/bitlinear/testbench_cosim_vectors
 
 #Robin
-run_cpu_testsfpga_erven/vitis_project/bitlinear_system/
+run_cpu_tests
+fpga_erven/vitis_project/bitlinear_system/
 
 # Week 6 — Vivado project build artifacts (huge, machine-specific)
 fpga_erven/vitis_project/bitlinear_system/
 fpga_erven/ps_host/vitis_ws/
+
+# Compiled ARM binaries left at repo root after board testing
+/bench_scaling
+/run-bitlinear

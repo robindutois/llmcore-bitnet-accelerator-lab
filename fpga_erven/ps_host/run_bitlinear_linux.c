@@ -195,6 +195,13 @@ static inline int8_t decode_w(uint8_t byte, int pos)
     return 0;
 }
 
+/* No longer called from run_one() as of the K%4 fix: it re-decodes from a
+ * packed buffer using the same flat scheme that had the alignment bug, so
+ * it cannot independently catch a packing defect it shares. run_one() now
+ * computes the CPU reference directly from the unpacked ground truth
+ * instead. Kept here, marked unused, for reference/documentation only. */
+static void cpu_bitlinear(const int8_t *x, const uint8_t *W,
+                          int32_t *y, int M, int K) __attribute__((unused));
 static void cpu_bitlinear(const int8_t *x, const uint8_t *W,
                           int32_t *y, int M, int K)
 {
@@ -221,20 +228,81 @@ static TR run_one(int idx)
     uint64_t t0, t1;
     int m;
 
-    memcpy(dma_x, TV_X[idx], (size_t)r.K);
-    memcpy(dma_W, TV_W[idx], (size_t)TV_W_BYTES[idx]);
-    memset(dma_y, 0,         (size_t)(r.M * (int)sizeof(int32_t)));
+    /* -------------------------------------------------------------------
+     * K%4 fix (Week 8 regression, see hls/reports/c_sim_result_week8.md):
+     * TV_W[idx] is packed with a flat, row-independent formula
+     * (byte_idx = (m*K+k)/4) generated once offline. A row only starts on a
+     * byte boundary if m*K is itself a multiple of 4 for every m, which
+     * holds only when K is a multiple of 4. For K not a multiple of 4
+     * (e.g. test09_manual, K=3), using TV_W[idx] directly with the true K
+     * reads the wrong 2-bit lane for every row after the first.
+     *
+     * Fix: round K up to K_pad, unpack TV_W[idx] using the TRUE K (correct
+     * by construction, independent of any row-alignment issue), then
+     * re-pack it row-independently at K_pad width -- each row zero-padded,
+     * matching what pack_matrix()/pack_row() (pack_ternary_2bit.cpp) do.
+     * When K is already a multiple of 4, K_pad == K and this reproduces
+     * TV_W[idx] byte-for-byte, so it is safe to apply unconditionally.
+     * ------------------------------------------------------------------- */
+    int K_pad = ((r.K + 3) / 4) * 4;
+    static int8_t w_unpacked[MAX_M * MAX_K];
 
-    /* CPU reference sanity check */
-    cpu_bitlinear(dma_x, dma_W, y_cpu, r.M, r.K);
+    for (m = 0; m < r.M; m++) {
+        int k;
+        for (k = 0; k < r.K; k++) {
+            int flat = m * r.K + k;
+            w_unpacked[m * r.K + k] =
+                decode_w(TV_W[idx][flat / 4], flat % 4);
+        }
+    }
+
+    memcpy(dma_x, TV_X[idx], (size_t)r.K);
+    memset(dma_x + r.K, 0, (size_t)(K_pad - r.K));   /* zero-pad activations */
+
+    size_t packed_bytes = (size_t)r.M * (size_t)K_pad / 4;
+    memset(dma_W, 0, packed_bytes);
+    {
+        int bytes_per_row = K_pad / 4;
+        int k;
+        for (m = 0; m < r.M; m++) {
+            for (k = 0; k < r.K; k++) {
+                int8_t w = w_unpacked[m * r.K + k];
+                uint8_t code = (w == 1) ? 1U : (w == -1) ? 2U : 0U;
+                int byte_in_row = k / 4;
+                int lane = k % 4;
+                dma_W[m * bytes_per_row + byte_in_row] |=
+                    (uint8_t)(code << (lane * 2));
+            }
+            /* k = r.K..K_pad-1 left at 0 from the memset -- zero-weight
+               padding, contributes nothing to the accumulation. */
+        }
+    }
+
+    memset(dma_y, 0, (size_t)(r.M * (int)sizeof(int32_t)));
+
+    /* CPU reference sanity check -- computed directly from the unpacked
+       ground truth (w_unpacked) at the TRUE K, independent of any packing
+       scheme, per the same principle applied in bench_scaling.c: a
+       reference re-derived from re-decoded packed bytes cannot catch a
+       packing bug it shares. */
+    for (m = 0; m < r.M; m++) {
+        int32_t acc = 0;
+        int k;
+        for (k = 0; k < r.K; k++) {
+            int8_t w = w_unpacked[m * r.K + k];
+            if (w ==  1) acc += (int32_t)dma_x[k];
+            if (w == -1) acc -= (int32_t)dma_x[k];
+        }
+        y_cpu[m] = acc;
+    }
     for (m = 0; m < r.M; m++)
         if (y_cpu[m] != TV_YREF[idx][m])
             printf("[WARN] CPU vs golden m=%d: %d != %d\n",
                    m, y_cpu[m], TV_YREF[idx][m]);
 
-    /* Write params and physical buffer addresses to IP */
+    /* Write params and physical buffer addresses to IP -- K_pad, not K */
     reg_wr(ctrl_map,  REG_M_DATA, (uint32_t)r.M);
-    reg_wr(ctrl_map,  REG_K_DATA, (uint32_t)r.K);
+    reg_wr(ctrl_map,  REG_K_DATA, (uint32_t)K_pad);
     reg_wr64(ctrl2_map, REG_X_LO, REG_X_HI, phys_x);
     reg_wr64(ctrl2_map, REG_W_LO, REG_W_HI, phys_W);
     reg_wr64(ctrl2_map, REG_Y_LO, REG_Y_HI, phys_y);
@@ -242,8 +310,8 @@ static TR run_one(int idx)
     __sync_synchronize();   /* memory barrier before ap_start */
 
     /* Flush CPU-written inputs (x, W) out to DDR so the IP sees fresh data. */
-    udmabuf_sync(0, 1, (size_t)r.K);
-    udmabuf_sync(1, 1, (size_t)TV_W_BYTES[idx]);
+    udmabuf_sync(0, 1, (size_t)K_pad);
+    udmabuf_sync(1, 1, packed_bytes);
     udmabuf_sync(2, 1, (size_t)(r.M * (int)sizeof(int32_t)));  /* push zeroed y */
 
     /* Start IP and poll ap_done */

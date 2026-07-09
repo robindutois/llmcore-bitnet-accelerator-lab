@@ -55,7 +55,7 @@ fpga_erven/
 │   └── reports/
 │       ├── c_ref_results.md          # Python + C++ validation results (Week 2)
 │       ├── c_sim_result.md           # HLS C-simulation results — Week 3 kernel (10/10)
-│       ├── c_sim_result_week8.md     # HLS C-simulation results — Week 8 kernel (9/10, K=3 edge case)
+│       ├── c_sim_result_week8.md     # HLS C-simulation results — Week 8/9 kernel (10/10, K%4 fix verified via Vitis csim + RTL cosim)
 │       ├── correctness_summary.md    # Full validation chain summary
 │       ├── synthesis_report.md       # Timing + resources (Week 4)
 │       ├── resource_estimate.md      # Per-module resource breakdown (Week 4)
@@ -194,7 +194,7 @@ chmod +x bench_scaling
 | RTL Co-Simulation | ✅ Week 5 — 10/10 PASS (Week 2 binary vectors) |
 | ZCU106 board — PetaLinux PS-PL | ✅ Week 6 — 10/10 PASS, 631 µs avg |
 | ZCU106 board — latency scaling | ✅ Week 7 — 8/8 PASS, T∝2·M·K (R²≈1.00) |
-| HLS C-Simulation (Week 8 kernel) | ⚠️ Week 8 — 9/10 (K=3 edge case, see c_sim_result_week8.md) |
+| HLS C-Simulation (Week 8/9 kernel) | Week 9 -- 10/10 (K%4 fix verified via Vitis csim + RTL cosim, see c_sim_result_week8.md) |
 | ZCU106 board — 4-lane optimized | ✅ Week 8 — 8/8 PASS, 3.7× speedup, 0.176 GOPS |
 
 ---

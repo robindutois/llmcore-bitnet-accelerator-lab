@@ -30,6 +30,7 @@
 // =============================================================================
 
 #include "bitlinear_hls.h"
+#include "pack_ternary_2bit.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -169,14 +170,44 @@ static int run_test_vector(const char* base_path, const char* test_name) {
     snprintf(path, sizeof(path), "%s/%s/expected_output_int32.bin", base_path, test_name);
     if (load_int32_bin(path, s_y_expected, TV_MAX_M) < 0) return 0;
 
-    // [B] C++ reference vs expected (Python ground truth)
+    // [B] C++ reference vs expected (Python ground truth) -- unaffected by the
+    // K%4 fix below: it reads s_W_unpacked directly and is always correct.
     bitlinear_cpp_ref(s_x, s_W_unpacked, s_y_ref, M, K);
     int ref_ok = 1;
     for (int m = 0; m < M; ++m)
         if (s_y_ref[m] != s_y_expected[m]) { ref_ok = 0; break; }
 
-    // [A] HLS kernel vs expected (Python ground truth)
-    bitlinear_hls(s_x, s_W_packed, s_y_hls, M, K);
+    // -------------------------------------------------------------------
+    // K%4 fix (Week 8 regression, see hls/reports/c_sim_result_week8.md):
+    // bitlinear_hls() indexes packed weight bytes with a FLAT, row-independent
+    // formula (byte_idx = (m*K+k)/4). A row only starts on a byte boundary if
+    // m*K is itself a multiple of 4 for every m, which holds only when K is a
+    // multiple of 4. For K not a multiple of 4, row m>0 silently reads the
+    // wrong 2-bit lane -- NOT an out-of-bounds read (x_local accesses are
+    // already bounds-guarded in the kernel), a *misaligned* one.
+    //
+    // Fix: round K up to K_pad (next multiple of 4), and re-pack the weight
+    // matrix row-independently at that width -- each row padded to K_pad with
+    // zero-weight codes ('00'), which contribute nothing to the accumulation.
+    // This is exactly what pack_matrix()/pack_row() (pack_ternary_2bit.cpp)
+    // already do: packing K weights produces ceil(K/4) bytes per row with the
+    // trailing partial byte zero-padded, which is byte-for-byte identical to
+    // flat-packing the same matrix at K_pad = 4*ceil(K/4). No kernel change is
+    // required: only the host-side packing and the K value passed to the
+    // kernel need to change. When K is already a multiple of 4, K_pad == K
+    // and this is a no-op producing byte-identical output to the original
+    // flat packing -- safe to apply unconditionally, no special-casing needed.
+    int K_pad = ((K + 3) / 4) * 4;
+    static uint8_t s_W_packed_fixed[HLS_DEPTH_W_PACK];
+    memset(s_W_packed_fixed, 0, sizeof(s_W_packed_fixed));
+    pack_matrix(s_W_unpacked, s_W_packed_fixed, M, K);
+    // s_x[K..K_pad-1] is already zero: s_x was memset to 0 above and only the
+    // true K bytes were loaded from activation_int8.bin.
+    // -------------------------------------------------------------------
+
+    // [A] HLS kernel vs expected (Python ground truth) -- now called with the
+    // K_pad-aligned packed weights and K_pad itself.
+    bitlinear_hls(s_x, s_W_packed_fixed, s_y_hls, M, K_pad);
     int hls_ok = 1;
     for (int m = 0; m < M; ++m)
         if (s_y_hls[m] != s_y_expected[m]) { hls_ok = 0; break; }
