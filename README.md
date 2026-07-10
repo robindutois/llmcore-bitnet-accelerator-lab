@@ -24,10 +24,14 @@ llmcore-bitnet-accelerator-lab/
 │   ├── vitis_project/          # Block design notes
 │   └── README.md               # FPGA track quick-start
 │
-├── tenstorrent_robin/          # Tenstorrent track — EdgeBox-TT Alpha (in progress)
+├── tenstorrent_robin/           # Tenstorrent track — EdgeBox-TT Alpha
+│   ├── inference_server/        # FastAPI inference server (POST /generate)
+│   ├── kernels/                 # TT-Metalium BitLinear kernel (reader / compute / writer)
+│   ├── benchmarks/              # Latency / tokens-per-second benchmark harness
+│   └── README.md                # Tenstorrent track quick-start
 │
 └── docs/
-    └── weekly_reports/         # Weekly progress reports (Erven, weeks 1–8)
+    └── weekly_reports/         # Weekly progress reports (Erven, weeks 1–9; Robin, weeks 1–2)
 ```
 
 ---
@@ -144,4 +148,4 @@ ZCU106 board       (Week 8/9 — 8/8 PASS + K%4 fix 10/10 PASS, 0.176 GOPS, 3.7�
 |-------|--------|
 | `reference/` — Common BitLinear reference | Complete |
 | `fpga_erven/` — FPGA BitLinear-FPGA Alpha | Week 9/10 complete |
-| `tenstorrent_robin/` — Tenstorrent EdgeBox-TT Alpha | Not included in this archive |
+| `tenstorrent_robin/` — Tenstorrent EdgeBox-TT Alpha | CPU reference validated against shared golden vectors; FastAPI inference server and TT-Metalium BitLinear kernel implemented; on-device kernel validation in progress |
