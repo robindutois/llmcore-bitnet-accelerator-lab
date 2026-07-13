@@ -16,6 +16,7 @@ include_directories(${TT_METAL_HOME}/tt_metal/api)
 include_directories(${TT_METAL_HOME}/build_Release/include)
 
 add_executable(run_bitnet host_metal.cpp)
+add_executable(run_bench bench_metal.cpp)
 
 # Ajout du chemin des bibliothèques
 link_directories(${TT_METAL_HOME}/build_Release/lib)
@@ -23,7 +24,7 @@ link_directories(${TT_METAL_HOME}/build_Release/lib)
 # FIX: Linkage explicite de la librairie principale ET de ses dépendances système/matériel
 # Ajoute ici les librairies nécessaires que l'éditeur de liens réclamait
 # 5. Édition de liens avec toutes les dépendances transitives
-target_link_libraries(run_bitnet 
+set(TT_LIBS
     ${TT_METAL_HOME}/build_Release/lib/libtt_metal.so
     ${TT_METAL_HOME}/build_Release/lib/libtt_stl.so
     ${TT_METAL_HOME}/build_Release/lib/libtt-umd.so.0
@@ -31,3 +32,6 @@ target_link_libraries(run_bitnet
     pthread
     dl
 )
+
+target_link_libraries(run_bitnet ${TT_LIBS})
+target_link_libraries(run_bench ${TT_LIBS})
