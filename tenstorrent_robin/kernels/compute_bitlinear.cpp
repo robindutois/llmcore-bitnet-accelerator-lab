@@ -35,10 +35,10 @@ void kernel_main() {
         cb_wait_front(cb_in1, 1);
         cb_reserve_back(cb_out0, 1);
 
-        // Retrait de la multiplication par 16 (les pointeurs sont déjà des adresses absolues)
-        int8_t* ptr_act = (int8_t*)get_local_cb_interface(cb_in0).fifo_rd_ptr;
-        uint8_t* ptr_w_packed = (uint8_t*)get_local_cb_interface(cb_in1).fifo_rd_ptr;
-        int32_t* ptr_out = (int32_t*)get_local_cb_interface(cb_out0).fifo_wr_ptr;
+        // On utilise l'interface locale du Circular Buffer (Valide pour TRISC)
+int8_t* ptr_act = (int8_t*)get_local_cb_interface(cb_in0).fifo_rd_ptr;
+uint8_t* ptr_w_packed = (uint8_t*)get_local_cb_interface(cb_in1).fifo_rd_ptr;
+int32_t* ptr_out = (int32_t*)get_local_cb_interface(cb_out0).fifo_wr_ptr;
 
         for (uint32_t m = 0; m < TILE_HEIGHT; ++m) {
             for (uint32_t n = 0; n < TILE_WIDTH; ++n) {
