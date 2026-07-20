@@ -35,7 +35,7 @@ llmcore-bitnet-accelerator-lab/
 │   └── run_fpga_software_tests.sh   # One-command software test runner (no board/Vivado required)
 │
 └── docs/
-    ├── weekly_reports/         # Weekly progress reports (Erven, weeks 1–9; Robin, weeks 1–2)
+    ├── weekly_reports/         # Weekly progress reports (Erven, weeks 1–10; Robin, weeks 1–2)
     ├── final_report/           # Joint final technical report draft
     └── architecture_diagrams/  # PS↔PL↔DDR4 architecture diagram
 ```
