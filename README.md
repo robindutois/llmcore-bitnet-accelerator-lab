@@ -20,14 +20,24 @@ llmcore-bitnet-accelerator-lab/
 ├── fpga_erven/                 # FPGA track — BitLinear-FPGA Alpha
 │   ├── setup/                  # ZCU106 board bring-up documentation
 │   ├── hls/                    # Vitis HLS kernel, packing, reference, reports
-│   ├── ps_host/                # ARM PS host program skeleton
-│   ├── vitis_project/          # Block design notes
+│   ├── ps_host/                # ARM PS host programs (PetaLinux + standalone) and test-vector generation
+│   ├── benchmarks/              # Latency/resource benchmark scripts, CSV results, scaling analysis
+│   ├── petalinux/              # PetaLinux app recipe + device-tree overlay for the board's Linux image
+│   ├── vitis_project/          # Bitstream, block design script, PS-PL notes
 │   └── README.md               # FPGA track quick-start
 │
-├── tenstorrent_robin/          # Tenstorrent track — EdgeBox-TT Alpha (in progress)
+├── tenstorrent_robin/           # Tenstorrent track — EdgeBox-TT Alpha
+│   ├── inference_server/        # FastAPI inference server (POST /generate)
+│   ├── kernels/                 # TT-Metalium BitLinear kernel (reader / compute / writer)
+│   └── README.md                # Tenstorrent track quick-start
+│
+├── scripts/
+│   └── run_fpga_software_tests.sh   # One-command software test runner (no board/Vivado required)
 │
 └── docs/
-    └── weekly_reports/         # Weekly progress reports (Erven, weeks 1–8)
+    ├── weekly_reports/         # Weekly progress reports (Erven, weeks 1–10; Robin, weeks 1–2)
+    ├── final_report/           # Joint final technical report draft
+    └── architecture_diagrams/  # PS↔PL↔DDR4 architecture diagram
 ```
 
 ---
@@ -92,7 +102,7 @@ Expected output for each step: all tests PASS.
 
 ---
 
-## Hardware results (FPGA track — current state: Week 9 of 10)
+## Hardware results (FPGA track — Week 10, final delivery)
 
 | Metric | Value |
 |--------|-------|
@@ -143,5 +153,5 @@ ZCU106 board       (Week 8/9 — 8/8 PASS + K%4 fix 10/10 PASS, 0.176 GOPS, 3.7�
 | Track | Status |
 |-------|--------|
 | `reference/` — Common BitLinear reference | Complete |
-| `fpga_erven/` — FPGA BitLinear-FPGA Alpha | Week 9/10 complete |
-| `tenstorrent_robin/` — Tenstorrent EdgeBox-TT Alpha | Not included in this archive |
+| `fpga_erven/` — FPGA BitLinear-FPGA Alpha | Week 10 — final delivery. All CDC layers/deliverables present; K%4 packing fix verified end-to-end (standalone C++, HLS C-sim, RTL co-sim, physical ZCU106 hardware); final report drafted (`docs/final_report/erven_fpga_report_draft.md`) |
+| `tenstorrent_robin/` — Tenstorrent EdgeBox-TT Alpha | CPU reference validated against shared golden vectors; FastAPI inference server and TT-Metalium BitLinear kernel implemented. *Status current as of last sync with the FPGA branch — confirm latest state with Robin before final submission, as `main` has since received further Tenstorrent commits not yet merged into `erven_1`.* |

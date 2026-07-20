@@ -2,7 +2,7 @@
 
 **ZCU106-based BitNet/TerEffic-style ternary BitLinear accelerator**
 **Student:** Erven LE BIVIC — Seoul National University / LLM Core AI
-**Current state:** Week 9 of 10 complete
+**Current state:** Week 10 of 10 — final delivery complete
 
 ---
 
@@ -46,9 +46,10 @@ fpga_erven/
 │   │   └── tests/                   # Packing unit tests (10/10 PASS)
 │   │
 │   ├── bitlinear/
-│   │   ├── bitlinear_hls.h           # HLS kernel header (MAX_M=512, MAX_K=1024)
+│   │   ├── bitlinear_hls.h           # HLS kernel header (MAX_M=512, MAX_K=1024; documents the K_pad interface contract)
 │   │   ├── bitlinear_hls.cpp         # Week 8 — 4-lane parallel kernel (K/4 trips, II=1)
 │   │   ├── testbench.cpp             # C-simulation testbench (10 Week 2 test vectors)
+│   │   ├── stress_test_kpad.cpp      # K%4 regression stress test (360/360 PASS)
 │   │   ├── run_hls.tcl               # Vitis HLS script (C-sim + synthesis + export)
 │   │   └── Makefile                  # g++ build for software-only testing
 │   │
@@ -63,9 +64,20 @@ fpga_erven/
 │       └── rtl_cosim_result.md       # RTL co-simulation results (Week 5)
 │
 ├── ps_host/
-│   ├── run_bitlinear_linux.c         # PetaLinux host — /dev/mem + udmabuf (Week 7)
+│   ├── run_bitlinear_linux.c         # PetaLinux host — /dev/mem + udmabuf (Week 7, board-verified)
 │   ├── run_bitlinear_standalone.c    # Standalone bare-metal host (Week 6)
-│   └── run_jtag.tcl                  # JTAG validation script (Week 6)
+│   ├── run_bitlinear.cpp             # Legacy — raw /dev/mem + manual cache assembly, kept for traceability;
+│   │                                  #   not the code path verified on board (see run_bitlinear_linux.c)
+│   ├── run_jtag.tcl                  # JTAG validation script (Week 6)
+│   ├── result_check.md               # CDC Layer 6 deliverable — PS-PL result verification procedure
+│   ├── gen_test_vectors_h.py         # Generates test_vectors_data.h from reference/test_vectors/
+│   ├── test_vectors_data.h           # Generated header (see script above)
+│   ├── host_skeleton.cpp             # Early PS-PL host skeleton (Week 5)
+│   └── week6_petalinux_result.txt    # Raw board output log, Week 6
+│
+├── petalinux/
+│   ├── recipes-apps/run-bitlinear/   # PetaLinux app recipe wrapping the PS host binary
+│   └── recipes-bsp/device-tree/      # Device-tree overlay used to build the board's Linux image
 │
 ├── benchmarks/
 │   ├── bench_scaling.c               # Week 8 — timing decomposition benchmark
@@ -73,7 +85,10 @@ fpga_erven/
 │   ├── run_benchmark.cpp             # CDC entry point (see run_benchmark.sh)
 │   ├── results_week7.csv             # Baseline results — sequential kernel (8/8 PASS)
 │   ├── results_week8.csv             # Optimized results — 4-lane kernel (8/8 PASS)
+│   ├── results.csv                   # CDC-literal Week 8 deliverable name (identical content to results_week8.csv)
 │   ├── matrix_scaling_notes.md       # Latency scaling law analysis (Week 7)
+│   ├── scaling_analysis.md           # Pointer to matrix_scaling_notes.md (kept for CDC naming coverage)
+│   ├── feasibility_analysis.md       # Full 8-size latency/throughput sweep, compute-vs-total-call breakdown
 │   ├── hls_unroll_exploration.md     # Static unroll trade-off analysis (Week 8)
 │   └── resource_report.md            # LUT/FF/BRAM/DSP utilization (Week 8)
 │
@@ -199,8 +214,9 @@ chmod +x bench_scaling
 | RTL Co-Simulation | ✅ Week 5 — 10/10 PASS (Week 2 binary vectors) |
 | ZCU106 board — PetaLinux PS-PL | ✅ Week 6 — 10/10 PASS, 631 µs avg |
 | ZCU106 board — latency scaling | ✅ Week 7 — 8/8 PASS, T∝2·M·K (R²≈1.00) |
-| HLS C-Simulation (Week 8/9 kernel) | Week 9 -- 10/10 (K%4 fix verified via Vitis csim + RTL cosim, see c_sim_result_week8.md) |
+| HLS C-Simulation (Week 8/9 kernel) | ✅ Week 9 — 10/10 (K%4 fix verified via Vitis csim + RTL cosim, see c_sim_result_week8.md) |
 | ZCU106 board — 4-lane optimized | ✅ Week 8 — 8/8 PASS, 3.7× speedup, 0.176 GOPS |
+| ZCU106 board — K%4 fix, physical hardware | ✅ Week 9/10 — verified via `bench_scaling` (M=5/K=7, MD5-verified transfer, all 8 standard sizes re-confirmed with no regression) and `run_bitlinear_linux.c` (10/10 PASS, incl. test09_manual M=2/K=3) |
 
 ---
 
