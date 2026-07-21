@@ -7,7 +7,7 @@
 
 ## Objective
 
-Final BitLinear-FPGA Alpha delivery (CDC Week 10): cleaned repository, final
+Final BitLinear-FPGA Alpha delivery (spec Week 10): cleaned repository, final
 report, final demo. With the technical work — HLS kernel, PS-PL integration,
 benchmarking, and the K%4 regression fix — closed out in Week 9, Week 10's
 remaining scope was to bring the repository's own documentation into sync
@@ -56,21 +56,21 @@ was listed four times, `fpga_erven/vitis_project/bitlinear_system/` twice,
 and a stray, unexplained `#Robin` comment sat above an unrelated ignore rule.
 No functional change — same paths ignored, just written once each.
 
-### 3. CDC Path Question — `reference/bitlinear_reference.cpp`
+### 3. Spec Path Question — `reference/bitlinear_reference.cpp`
 
 Audited whether the C++ reference belongs at `reference/bitlinear_reference.cpp`
-(as shown in the CDC's illustrative shared-repository tree, Section 4) or at
+(as shown in the project spec's illustrative shared-repository tree, Section 4) or at
 `fpga_erven/hls/reference/bitlinear_reference.cpp` (where it has lived since
-Week 2, and where the CDC's own Layer 2 deliverable list — the detailed,
+Week 2, and where the spec's own Layer 2 deliverable list — the detailed,
 per-layer specification this track is actually assessed against — explicitly
-names it). Conclusion: this is an internal inconsistency in the CDC document
+names it). Conclusion: this is an internal inconsistency in the spec document
 itself, the same pattern already seen with `results.csv` vs.
 `results_week7.csv`/`results_week8.csv`. No file move made; the current
 location satisfies the specific, authoritative deliverable path.
 
 ### 4. Investor Demo Script — Decision Recorded
 
-The CDC's Week 10 checklist lists "Investor demo script" as an item distinct
+The spec's Week 10 checklist lists "Investor demo script" as an item distinct
 from the final report and the demo video. Decision: not producing a separate
 script file — the investor-facing narrative already lives in the final
 report (Section 15) and in the demo video itself once recorded; a third,
@@ -105,7 +105,7 @@ wrappers/pointers rather than duplicated content. No further changes needed.
 ✅ Repository documentation (both READMEs) matches the actual final-delivery
 state and the real, git-tracked file set
 ✅ `.gitignore` cleaned of duplication
-✅ CDC path ambiguity investigated and resolved with a documented rationale
+✅ Spec path ambiguity investigated and resolved with a documented rationale
 ✅ Investor demo script scope decision made and recorded
 ⏳ Demo video — being delivered separately (file size), not yet committed to
 `docs/investor_demo/`

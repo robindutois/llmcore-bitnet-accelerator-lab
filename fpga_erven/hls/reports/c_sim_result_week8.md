@@ -95,7 +95,7 @@ The indexing model breaks when K is not a multiple of 4 because the packed
 layout is row-flat (all rows concatenated) but the ×4 loop assumes each row
 starts on a byte boundary.
 
-**This is a known, documented limitation.** All CDC-required matrix sizes
+**This is a known, documented limitation.** All spec-required matrix sizes
 (K=128, 256, 512) and all sizes tested in bench_scaling (K=64, 128, 256,
 512, 1024) are multiples of 4 and pass correctly. test09 with K=3 is a
 validation edge case, not a production use case.
@@ -105,7 +105,7 @@ validation edge case, not a production use case.
 ## 6. On-Board Validation (supersedes C-sim for production sizes)
 
 The Week 8 kernel was synthesized, implemented in Vivado, and tested on the
-ZCU106 board. All CDC-required sizes pass bit-exact verification:
+ZCU106 board. All spec-required sizes pass bit-exact verification:
 
 | Size (M×K) | T_compute (µs) | GOPS | Verify |
 |---|---|---|---|
@@ -185,7 +185,7 @@ test09_manual              2     3          2 PASS
 Both independent on-board verification paths (`bench_scaling` and
 `run_bitlinear_linux.c`) now pass 10/10 and 9/9 respectively (the size sets
 differ: `bench_scaling` sweeps 8 scaling sizes + M=5/K=7;
-`run_bitlinear_linux.c` runs the 10 CDC test vectors including
+`run_bitlinear_linux.c` runs the 10 spec test vectors including
 `test09_manual`). No open K%4 gaps remain anywhere in the repository.
 
 ---

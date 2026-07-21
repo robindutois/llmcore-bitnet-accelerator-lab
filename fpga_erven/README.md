@@ -69,7 +69,7 @@ fpga_erven/
 │   ├── run_bitlinear.cpp             # Legacy — raw /dev/mem + manual cache assembly, kept for traceability;
 │   │                                  #   not the code path verified on board (see run_bitlinear_linux.c)
 │   ├── run_jtag.tcl                  # JTAG validation script (Week 6)
-│   ├── result_check.md               # CDC Layer 6 deliverable — PS-PL result verification procedure
+│   ├── result_check.md               # spec Layer 6 deliverable — PS-PL result verification procedure
 │   ├── gen_test_vectors_h.py         # Generates test_vectors_data.h from reference/test_vectors/
 │   ├── test_vectors_data.h           # Generated header (see script above)
 │   ├── host_skeleton.cpp             # Early PS-PL host skeleton (Week 5)
@@ -82,12 +82,12 @@ fpga_erven/
 ├── benchmarks/
 │   ├── bench_scaling.c               # Week 8 — timing decomposition benchmark
 │   ├── run_benchmark.sh              # Single-command automation script (PetaLinux)
-│   ├── run_benchmark.cpp             # CDC entry point (see run_benchmark.sh)
+│   ├── run_benchmark.cpp             # spec entry point (see run_benchmark.sh)
 │   ├── results_week7.csv             # Baseline results — sequential kernel (8/8 PASS)
 │   ├── results_week8.csv             # Optimized results — 4-lane kernel (8/8 PASS)
-│   ├── results.csv                   # CDC-literal Week 8 deliverable name (identical content to results_week8.csv)
+│   ├── results.csv                   # spec-literal Week 8 deliverable name (identical content to results_week8.csv)
 │   ├── matrix_scaling_notes.md       # Latency scaling law analysis (Week 7)
-│   ├── scaling_analysis.md           # Pointer to matrix_scaling_notes.md (kept for CDC naming coverage)
+│   ├── scaling_analysis.md           # Pointer to matrix_scaling_notes.md (kept for spec naming coverage)
 │   ├── feasibility_analysis.md       # Full 8-size latency/throughput sweep, compute-vs-total-call breakdown
 │   ├── hls_unroll_exploration.md     # Static unroll trade-off analysis (Week 8)
 │   └── resource_report.md            # LUT/FF/BRAM/DSP utilization (Week 8)
