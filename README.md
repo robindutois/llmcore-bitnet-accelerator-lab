@@ -153,5 +153,5 @@ ZCU106 board       (Week 8/9 — 8/8 PASS + K%4 fix 10/10 PASS, 0.176 GOPS, 3.7�
 | Track | Status |
 |-------|--------|
 | `reference/` — Common BitLinear reference | Complete |
-| `fpga_erven/` — FPGA BitLinear-FPGA Alpha | Week 10 — final delivery. All CDC layers/deliverables present; K%4 packing fix verified end-to-end (standalone C++, HLS C-sim, RTL co-sim, physical ZCU106 hardware); final report drafted (`docs/final_report/erven_fpga_report_draft.md`) |
+| `fpga_erven/` — FPGA BitLinear-FPGA Alpha | Week 10 — final delivery. All spec-defined layers/deliverables present; K%4 packing fix verified end-to-end (standalone C++, HLS C-sim, RTL co-sim, physical ZCU106 hardware); final report drafted (`docs/final_report/erven_fpga_report_draft.md`) |
 | `tenstorrent_robin/` — Tenstorrent EdgeBox-TT Alpha | CPU reference validated against shared golden vectors; FastAPI inference server and TT-Metalium BitLinear kernel implemented. *Status current as of last sync with the FPGA branch — confirm latest state with Robin before final submission, as `main` has since received further Tenstorrent commits not yet merged into `erven_1`.* |

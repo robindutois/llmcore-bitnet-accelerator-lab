@@ -13,7 +13,7 @@
 //     - After : K/4 iterations × 1 AXI read (each byte read exactly once)
 //
 // Constraint: K must be a multiple of 4.
-//   All CDC-required sizes (K=128, 256, 512) satisfy this.
+//   All spec-required sizes (K=128, 256, 512) satisfy this.
 //
 // Weight encoding (2-bit packed, FLAT layout — unchanged from Week 2):
 //   00 = 0   01 = +1   10 = -1   11 = reserved (treated as 0)
@@ -60,7 +60,7 @@ void bitlinear_hls(
 
         // Inner loop: one packed byte = 4 weights per cycle
         // Loop trips K/4 times (vs K times in Week 7) → 4× fewer iterations
-        // Note: all CDC-required sizes have K multiple of 4 (128, 256, 512).
+        // Note: all spec-required sizes have K multiple of 4 (128, 256, 512).
         // For non-multiple-of-4 K (e.g. test09 K=3), lanes beyond K are masked.
         INNER_LOOP:
         for (int k = 0; k < K; k += 4) {

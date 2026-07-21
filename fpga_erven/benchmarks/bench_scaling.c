@@ -67,17 +67,17 @@
 #define BENCH_RUNS   11   /* odd -> true median at BENCH_RUNS/2 */
 #define RNG_SEED     42u
 
-/* --- Sizes swept: the 3 CDC-required sizes + 5 additional scaling points --- */
+/* --- Sizes swept: the 3 spec-required sizes + 5 additional scaling points --- */
 typedef struct { int M; int K; } Size;
 static const Size SIZES[] = {
     {  64,   64 },
-    {  64,  128 },   /* *** CDC required *** */
+    {  64,  128 },   /* *** spec required *** */
     {   5,    7 },   /* K%4 fix validation -- K not a multiple of 4, remove or
                          keep as a permanent regression test once confirmed PASS */
     { 128,  128 },
-    { 128,  256 },   /* *** CDC required *** */
+    { 128,  256 },   /* *** spec required *** */
     { 256,  256 },
-    { 256,  512 },   /* *** CDC required *** */
+    { 256,  512 },   /* *** spec required *** */
     { 512,  512 },
     { 512, 1024 },
 };

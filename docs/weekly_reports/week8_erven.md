@@ -73,7 +73,7 @@ restructuring only. The DDR bandwidth is identical (1 byte/cycle in both
 versions), and the adder tree for 4 partial sums maps to the same LUT
 count as the original single accumulation path.
 
-**Constraint:** K must be a multiple of 4. All CDC-required sizes
+**Constraint:** K must be a multiple of 4. All spec-required sizes
 (K=128, 256, 512) satisfy this. See `c_sim_result_week8.md` for details
 on the K=3 edge case in the testbench.
 
@@ -113,7 +113,7 @@ All 8 sizes executed correctly (8/8 PASS, bit-exact vs. CPU reference).
 | 512×512 | 3 259 | 255 | 2 878 | 127 | 88.3 % | 0.1609 | PASS |
 | **512×1024** | **5 952** | **260** | **5 563** | **128** | **93.5 %** | **0.1762** | **PASS** |
 
-Bold rows = CDC-required sizes.
+Bold rows = spec-required sizes.
 
 **Speedup summary:**
 
@@ -167,7 +167,7 @@ The DDR4 HP port bandwidth (~3 GB/s) remains the binding constraint above
 |---|---|
 | `fpga_erven/benchmarks/bench_scaling.c` | Week 8 benchmark with timing decomposition |
 | `fpga_erven/benchmarks/run_benchmark.sh` | Single-command automation script |
-| `fpga_erven/benchmarks/run_benchmark.cpp` | CDC entry point |
+| `fpga_erven/benchmarks/run_benchmark.cpp` | spec entry point |
 | `fpga_erven/benchmarks/results_week8.csv` | On-board results — 4-lane kernel (8/8 PASS) |
 | `fpga_erven/benchmarks/hls_unroll_exploration.md` | Static + measured unroll analysis |
 | `fpga_erven/benchmarks/resource_report.md` | Updated LUT/FF/BRAM/DSP (Week 8) |

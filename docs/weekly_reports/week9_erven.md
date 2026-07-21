@@ -8,7 +8,7 @@
 ## Objective
 
 Write the ASIC scaling note, prepare the architecture diagram and final report
-draft, and record a demo video draft. Success criterion (CDC): the FPGA
+draft, and record a demo video draft. Success criterion (per spec): the FPGA
 result is clearly connected to future ASIC/IP value.
 
 In addition to the planned scope, Week 9 uncovered and closed a real
@@ -23,7 +23,7 @@ directly measured ones.
 ### 1. ASIC Scaling Note
 
 Written as Section 12 of `docs/final_report/erven_fpga_report_draft.md`
-(12.1–12.6), rather than as a separate file, since the CDC names no
+(12.1–12.6), rather than as a separate file, since the spec names no
 standalone file path for it at either Week 9 or Week 10. Covers: the
 zero-multiplier operation and why it matters for a chip-design evaluation,
 which measured figures are portable to any target silicon vs. which are

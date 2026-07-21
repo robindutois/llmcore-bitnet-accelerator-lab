@@ -3,7 +3,7 @@
 // BitLinear-FPGA Alpha — Benchmark automation entry point
 // =============================================================================
 //
-// This file is the CDC-required C++ entry point for the benchmark automation.
+// This file is the spec-required C++ entry point for the benchmark automation.
 // The actual implementation is in run_benchmark.sh, which orchestrates the
 // complete pipeline on the ZCU106 board (PetaLinux environment):
 //

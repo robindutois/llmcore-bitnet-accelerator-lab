@@ -47,7 +47,7 @@ portable hardware IP, independent of any single board.
 
 ## 3. Technical Objective
 
-The FPGA track's technical objective, as scoped by the project's cahier des charges, was to
+The FPGA track's technical objective, as scoped by the project's spec, was to
 implement, validate, and optimize a BitLinear HLS IP core through the complete FPGA
 development stack — HLS kernel design, C-simulation, synthesis, RTL co-simulation, Vivado
 PS-PL integration, PetaLinux host software, and on-board benchmarking — culminating in a
@@ -68,7 +68,7 @@ hardware opportunity this project's FPGA track set out to verify and quantify.
 
 ## 5. Common Reference Model
 
-The project's cahier des charges specifies a shared correctness contract for both hardware
+The project's spec specifies a shared correctness contract for both hardware
 tracks: a golden reference implementation and a fixed set of test vectors that any hardware
 result must reproduce bit-exact. On the FPGA track, this was implemented as:
 
@@ -490,5 +490,5 @@ Near-term (1-3 months, beyond the current sprint):
 `bitlinear_fpga_architecture.png` (PS↔PL↔DDR4 diagram with measured latency), `resource_report.md`,
 `feasibility_analysis.md`, and the Week 7/Week 8 weekly reports and technical notes, all under the
 `erven_1` branch of `robindutois/llmcore-bitnet-accelerator-lab`. (Section 12 contains the full
-ASIC handoff analysis directly — no separate handoff-note file is committed, per the CDC's Week
+ASIC handoff analysis directly — no separate handoff-note file is committed, per the spec's Week
 9/10 deliverable list, which names no such standalone file.)*
