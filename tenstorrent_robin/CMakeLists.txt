@@ -17,6 +17,8 @@ include_directories(${TT_METAL_HOME}/build_Release/include)
 
 add_executable(run_bitnet host_metal.cpp)
 add_executable(run_bench bench_metal.cpp)
+add_executable(run_bitnet_mm bitnet_mm.cpp)
+add_executable(run_bench_mm bench_mm.cpp)
 
 # Ajout du chemin des bibliothèques
 link_directories(${TT_METAL_HOME}/build_Release/lib)
@@ -35,3 +37,5 @@ set(TT_LIBS
 
 target_link_libraries(run_bitnet ${TT_LIBS})
 target_link_libraries(run_bench ${TT_LIBS})
+target_link_libraries(run_bitnet_mm ${TT_LIBS})
+target_link_libraries(run_bench_mm ${TT_LIBS})
