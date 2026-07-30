@@ -2,8 +2,9 @@
 
 **Project:** EdgeBox-TT — a non-NVIDIA LLM inference accelerator
 **Track:** Tenstorrent Blackhole (ternary BitLinear operator)
-**Author:** Robin Dutois — Seoul National University / LLM Core AI
-**Status:** Core operator implemented, hardware-validated, and benchmarked. Living document — to be updated as work progresses.
+**Authors:** Robin Dutois (BitLinear operator, kernels, benchmarks) — Seoul National University / LLM Core AI
+**Team:** Ludovic is bringing up full-model BitNet inference on the card via **bitnet.cpp** (the BitNet inference framework) — the end-to-end LLM layer that consumes this operator.
+**Status:** Core operator implemented, hardware-validated, benchmarked, and parallelized across the Tensix grid (~2.7 TOP/s). Living document — to be updated as work progresses.
 
 ---
 
@@ -13,20 +14,23 @@ This track brings up and benchmarks the **core compute primitive of BitNet** —
 **BitLinear** operator (`out = W_ternary · x_int8 → int32`) — directly on a **Tenstorrent
 Blackhole** accelerator card, programmed bare-metal with **tt-metal (TT-Metalium)**.
 
-Two implementations were built and validated on the physical board:
+Three implementations were built and validated on the physical board:
 
-| Implementation | Where the math runs | Correctness | Max size | Throughput (1 core) |
-|---|---|---|---|---|
-| **Scalar** | one RISC-V (writer kernel) | **bit-exact**, 9/9 reference vectors | 16 384 MAC | ~0.10 GOP/s |
-| **Matrix engine** | `matmul_tiles` on the matrix unit | 10/10 vectors, PCC ≈ 1 (bf16) | 8.4 M MAC (512×512) | **~78 GOP/s** |
+| Implementation | Where the math runs | Correctness | Peak throughput |
+|---|---|---|---|
+| **Scalar** | one RISC-V (writer kernel) | **bit-exact**, 9/9 reference vectors | ~0.10 GOP/s |
+| **Matrix engine** (1 core) | `matmul_tiles` on the matrix unit | 10/10 vectors, PCC ≈ 1 (bf16) | ~78 GOP/s |
+| **Multi-core** (110 cores) | `matmul_multi_core` on the Tensix grid | 10/10 vectors, PCC ≈ 1 | **~2 732 GOP/s (≈ 2.7 TOP/s)** |
 
-Moving the compute onto the matrix engine gives **~790× more throughput** and **~720× lower
-latency per vector**, and scales to matrices the scalar version cannot run — all on a **single
-Tensix core out of ~140**.
+Each optimization step gains more than an order of magnitude: the matrix engine is **~790×** the
+scalar baseline, and distributing the work across the Tensix grid adds another **~35×**, for a total
+**~27 000×** over the scalar baseline. Multi-core throughput scales near-linearly up to ~64 cores,
+then plateaus as DRAM bandwidth saturates (compute-bound → memory-bound).
 
-What is **not** done yet: a full end-to-end BitNet LLM (attention, all layers, tokenizer, text
-generation). This report covers the validated operator and its benchmarks, which are the
-foundation the rest builds on.
+What this report covers: the validated **BitLinear operator** and its benchmarks — the compute
+foundation. The **full end-to-end BitNet LLM** (attention, all layers, tokenizer, text generation)
+is being brought up in parallel by **Ludovic**, who is porting **bitnet.cpp** (the BitNet inference
+framework) onto the card; that layer consumes the operator characterized here.
 
 ---
 
@@ -139,6 +143,14 @@ example validates (PCC).
 > fast, but no longer the "multiply-free" datapath. That pure add/sub advantage is the domain of
 > the FPGA/ASIC track.
 
+### 3.4 Multi-core implementation (parallelization)
+
+Distributes the computation across the Tensix grid, reusing tt-metal's official
+**`matmul_multi_core`** kernels unchanged (`kernels_mc/`). `split_work_to_cores` divides the M×N
+output tiles among the available cores; each core computes its share with the matrix engine and
+writes its output tiles back. The host (`bitnet_mc.cpp`) prepares data exactly as the single-core
+matrix version. This is the same operator, simply spread over up to 110 cores instead of one.
+
 ---
 
 ## 4. Results (measured on the board)
@@ -166,6 +178,22 @@ is the amortized per-vector latency. DMA/PCIe round-trip is a fixed ~24 µs, sep
 **Headline:** ~790× peak throughput, ~720× lower per-vector latency, and scaling to 8.4 M MAC that
 the single-tile scalar loader could not handle — on one core out of ~140.
 
+### 4.3 Multi-core scaling (matmul_multi_core, batch N=32, K=512)
+
+| M | Cores | MAC/call | Latency µs | GOP/s | vs 1 matrix core |
+|---|---|---|---|---|---|
+| 256  | 8   | 4.2 M  | 14.9 | 564   | ×7.2 |
+| 512  | 16  | 8.4 M  | 16.2 | 1 033 | ×13 |
+| 1024 | 32  | 16.8 M | 19.2 | 1 748 | ×22 |
+| 2048 | 64  | 33.6 M | 25.6 | 2 620 | ×34 |
+| 4096 | 110 | 67.1 M | 49.1 | **2 732** | ×35 |
+
+Throughput scales **near-linearly up to ~64 cores** (×34 vs a single matrix-engine core), then
+**plateaus** at ~2.7 TOP/s: beyond ~64 cores all cores read weights from DRAM simultaneously and the
+**DRAM/NoC bandwidth saturates** (the kernel becomes memory-bound). This is the expected roofline
+transition, not a defect — see the optimization proposals for how to push past it. Correctness holds
+throughout (PCC ≈ 1).
+
 ---
 
 ## 5. How to run
@@ -177,6 +205,10 @@ the single-tile scalar loader could not handle — on one core out of ~140.
 - `tt-smi` available (used to reset the card between runs).
 - The reference vectors in `reference/test_vectors/` (part of this repo).
 
+The exact tested environment (OS, driver/KMD 2.8.0, firmware 19.6.0, tt-metal, device detection,
+smoke-test result) is documented in **`setup/environment_check.md`**; the bring-up steps in
+**`setup/install_log.md`**.
+
 ```bash
 export TT_METAL_HOME=/home/<user>/tt-metal      # adjust to your install
 ```
@@ -186,7 +218,8 @@ export TT_METAL_HOME=/home/<user>/tt-metal      # adjust to your install
 ```bash
 cd tenstorrent_robin
 cmake -B build
-cmake --build build          # builds: run_bitnet, run_bench, run_bitnet_mm, run_bench_mm
+cmake --build build          # builds: run_bitnet, run_bench, run_bitnet_mm, run_bench_mm,
+                             #         run_bitnet_mc, run_bench_mc
 ```
 
 > If the board is in a bad state after a crash/Ctrl-C, reset it first: `tt-smi -r 0`.
@@ -199,6 +232,8 @@ cmake --build build          # builds: run_bitnet, run_bench, run_bitnet_mm, run
 ./run_reference_tests.sh
 # matrix engine (PCC)
 ./run_reference_tests_mm.sh
+# multi-core (PCC, reports cores used)
+./run_reference_tests_mc.sh
 # a single case:
 ./build/run_bitnet    ../reference/test_vectors/test01_random 32 64
 ./build/run_bitnet_mm ../reference/test_vectors/test10_large 256 512
@@ -207,9 +242,10 @@ cmake --build build          # builds: run_bitnet, run_bench, run_bitnet_mm, run
 ### 5.4 Benchmarks
 
 ```bash
-./run_benchmark_hw.sh      # scalar sweep      -> benchmarks/bitlinear_hw_results.csv
-./run_benchmark_mm.sh      # matrix sweep      -> benchmarks/bitlinear_mm_results.csv
-# single point:  ./build/run_bench_mm <M> <K> <N> <iters>
+./run_benchmark_hw.sh      # scalar sweep       -> benchmarks/bitlinear_hw_results.csv
+./run_benchmark_mm.sh      # matrix sweep       -> benchmarks/bitlinear_mm_results.csv
+./run_benchmark_mc.sh      # multi-core sweep   -> benchmarks/bitlinear_mc_results.csv
+# single point:  ./build/run_bench_mm <M> <K> <N> <iters>   (or run_bench_mc)
 ```
 
 ### 5.5 GPU cross-comparison (optional, on the NVIDIA GPU)
@@ -226,13 +262,16 @@ pip install torch nvidia-ml-py      # in your conda env
 
 ```
 tenstorrent_robin/
+├── setup/                    # install_log.md, environment_check.md (L1 environment docs)
 ├── host_metal.cpp            # scalar host (reference-vector test)
 ├── bitnet_mm.cpp             # matrix-engine host (reference-vector test)
 ├── bench_metal.cpp           # scalar benchmark
 ├── bench_mm.cpp              # matrix-engine benchmark
 ├── bitlinear_cpu.cpp         # CPU golden reference (packed ternary)
+├── bitnet_mc.cpp / bench_mc.cpp  # multi-core host + benchmark
 ├── kernels/                  # scalar: reader, writer (does MAC), compute_bitlinear (empty)
-├── kernels_mm/               # matrix engine: reader_mm, mm (matmul_tiles), writer_mm
+├── kernels_mm/               # matrix engine (1 core): reader_mm, mm (matmul_tiles), writer_mm
+├── kernels_mc/               # multi-core: reader_mc, mm_mc, writer_mc (matmul_multi_core)
 ├── benchmarks/               # gpu_bench.py, run_gpu_benchmark.sh, *_results.csv
 ├── run_reference_tests*.sh   # validation sweeps (scalar / mm)
 ├── run_benchmark_*.sh        # benchmark sweeps (scalar / mm)
@@ -246,11 +285,14 @@ reference/test_vectors/       # golden vectors (activation, packed weights, expe
 
 1. **bf16, not bit-exact (matrix engine).** ~0.1% off the int32 golden; negligible for BitNet, but
    an int8→int32 matmul mode would make it exact.
-2. **Single core.** 78 GOP/s uses 1 Tensix of ~140 → the vast majority of the chip is idle.
+2. **DRAM-bandwidth bound at scale.** Multi-core now uses up to 110 cores (~2.7 TOP/s), but
+   throughput plateaus beyond ~64 cores because all cores read weights from DRAM at once and
+   saturate the bandwidth. Weight reuse (multicast) is needed to push further.
 3. **PCIe ×4 overhead.** A fixed ~24 µs host↔device round-trip; real inference must keep weights
    resident on the card.
-4. **Operator, not full model.** The core BitLinear is validated; the end-to-end LLM (attention,
-   all layers, tokenizer, autoregressive generation) is not yet running.
+4. **Operator, not full model (in progress).** The core BitLinear is validated; the end-to-end LLM
+   (attention, all layers, tokenizer, autoregressive generation) is being brought up separately by
+   Ludovic via **bitnet.cpp** on the card.
 5. **Batch-1 padding.** A single activation vector pads N to 32, wasting 31/32 of a tile; real
    batched inference removes this.
 
@@ -258,13 +300,17 @@ reference/test_vectors/       # golden vectors (activation, packed weights, expe
 
 ## 8. Next steps
 
-1. **int8 → int32 matmul** — bit-exact results and likely higher throughput than bf16.
-2. **Multi-core scaling** — distribute the output rows across the ~140 Tensix cores
-   (start from tt-metal's `matmul_multi_core`); expected order-of-magnitude throughput gain.
-3. **Head-to-head vs the NVIDIA GPU** — same operator on the lab's Blackwell GPU, comparing
+1. **✅ Multi-core scaling — done.** Distributed across up to 110 Tensix cores via
+   `matmul_multi_core` → ~2.7 TOP/s (×35 over a single matrix-engine core).
+2. **Weight-reuse multicast** — push past the DRAM-bandwidth plateau using
+   `matmul_multicore_reuse_mcast` (broadcast shared weight tiles to cores instead of each core
+   re-reading them) and larger batch N (higher arithmetic intensity).
+3. **int8 → int32 matmul** — bit-exact results and likely higher throughput than bf16.
+4. **Head-to-head vs the NVIDIA GPU** — same operator on the lab's Blackwell GPU, comparing
    throughput, latency, and especially **performance-per-watt** — the core SKU argument.
-4. **Full BitNet inference** — wire the operator into a real model: activation quantization,
-   RMSNorm, attention, all layers, tokenizer, autoregressive loop; then a REST API + demo.
+5. **Full BitNet inference (Ludovic, in progress)** — bring up **bitnet.cpp** end-to-end on the
+   card (activation quantization, RMSNorm, attention, all layers, tokenizer, autoregressive loop),
+   backed by this operator; then a REST API + demo. Reported as tokens/s and perf-per-watt.
 
 ---
 
